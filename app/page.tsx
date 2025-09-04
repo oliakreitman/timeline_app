@@ -1,103 +1,367 @@
-import Image from "next/image";
+"use client"
 
-export default function Home() {
+import { useState, useEffect } from "react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Progress } from "@/components/ui/progress"
+import { ContactForm } from "@/components/contact-form"
+import { EmployerForm } from "@/components/employer-form"
+import { EventBuilder } from "@/components/event-builder"
+import { TimelineReview } from "@/components/timeline-review"
+import { AuthDemo } from "@/components/auth/auth-demo"
+import { useAuth } from "@/lib/auth-context"
+import { saveTimelineSubmission, getUserTimelineSubmission, TimelineSubmission } from "@/lib/database"
+import { sortTimelineEvents } from "@/lib/utils"
+import { isUserAuthenticated } from "@/lib/auth"
+import { Scale } from "lucide-react"
+import Image from "next/image"
+
+export interface ContactInfo {
+  firstName: string
+  lastName: string
+  email: string
+  phone: string
+  address: string
+}
+
+export interface EmployerInfo {
+  companyName: string
+  location: string
+  jobTitle: string
+  startDate: string
+  endDate: string
+  payRate: string
+  employmentType: string
+}
+
+export interface TimelineEvent {
+  id: string
+  type: string
+  title: string
+  description: string
+  approximateDate: string
+  details: Record<string, any>
+  attachments?: Array<{
+    id: string
+    name: string
+    type: string
+    size: number
+    url?: string
+  }>
+}
+
+const steps = [
+  { id: 1, title: "Contact Information", description: "Your personal details" },
+  { id: 2, title: "Employer Information", description: "Workplace details" },
+  { id: 3, title: "Timeline Events", description: "Add workplace incidents" },
+  { id: 4, title: "Review & Submit", description: "Confirm your timeline" },
+]
+
+export default function IntakeForm() {
+  const { user, userProfile } = useAuth()
+  const [showAuthDemo, setShowAuthDemo] = useState(false)
+  const [currentStep, setCurrentStep] = useState(1)
+  const [contactInfo, setContactInfo] = useState<ContactInfo>({
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    address: "",
+  })
+  const [employerInfo, setEmployerInfo] = useState<EmployerInfo>({
+    companyName: "",
+    location: "",
+    jobTitle: "",
+    startDate: "",
+    endDate: "",
+    payRate: "",
+    employmentType: "",
+  })
+  const [events, setEvents] = useState<TimelineEvent[]>([])
+  const [existingSubmission, setExistingSubmission] = useState<TimelineSubmission | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  const progress = (currentStep / steps.length) * 100
+
+  // Load existing timeline data when user signs in
+  useEffect(() => {
+    const loadExistingTimeline = async () => {
+      if (user && !loading) {
+        setLoading(true);
+        try {
+          const submission = await getUserTimelineSubmission(user.uid);
+          if (submission) {
+            setExistingSubmission(submission);
+            setContactInfo(submission.contactInfo);
+            setEmployerInfo(submission.employerInfo);
+            // Sort events before setting them in state
+            const sortedEvents = sortTimelineEvents([...submission.events]);
+            setEvents(sortedEvents);
+          }
+        } catch (error) {
+          console.error("Error loading existing timeline:", error);
+        } finally {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadExistingTimeline();
+  }, [user]);
+
+  // Show auth demo when no user, hide when user logs in
+  useEffect(() => {
+    if (!user) {
+      setShowAuthDemo(true);
+    } else {
+      setShowAuthDemo(false);
+    }
+  }, [user]);
+
+  const handleNext = () => {
+    if (currentStep < steps.length) {
+      setCurrentStep(currentStep + 1)
+    }
+  }
+
+  const handlePrevious = () => {
+    if (currentStep > 1) {
+      setCurrentStep(currentStep - 1)
+    }
+  }
+
+  const handleSubmit = async () => {
+    if (!user) {
+      alert("Please sign in to submit your timeline");
+      return;
+    }
+
+    // Check if user's authentication is still valid
+    const isAuthenticated = await isUserAuthenticated();
+    if (!isAuthenticated) {
+      alert("Your session has expired. Please sign in again.");
+      setShowAuthDemo(true);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const submissionData = {
+        userId: user.uid,
+        contactInfo,
+        employerInfo,
+        events,
+        status: 'submitted' as const
+      };
+
+      const submissionId = await saveTimelineSubmission(submissionData);
+      
+      // Update the existing submission state
+      setExistingSubmission({
+        id: submissionId,
+        ...submissionData,
+        submittedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+
+      // Send email notification
+      try {
+        const emailResponse = await fetch('/api/send-email', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            timelineData: submissionData,
+            userEmail: user.email,
+            userName: userProfile?.firstName && userProfile?.lastName 
+              ? `${userProfile.firstName} ${userProfile.lastName}`
+              : userProfile?.displayName || user.email
+          }),
+        });
+
+        const emailResult = await emailResponse.json();
+        
+        if (emailResponse.ok && emailResult.success) {
+          console.log('Email notification sent successfully');
+        } else {
+          console.warn(`Email notification failed: ${emailResult.message}`);
+          alert(`Timeline saved successfully, but email notification failed: ${emailResult.message}`);
+        }
+      } catch (emailError) {
+        console.error('Error sending email notification:', emailError);
+        alert('Timeline saved successfully, but email notification failed. Please check the console for details.');
+      }
+
+      alert(existingSubmission ? "Timeline updated successfully!" : "Timeline submitted successfully!");
+    } catch (error) {
+      console.error("Error submitting timeline:", error);
+      
+      // Check if it's an authentication error
+      if (error instanceof Error && error.message.includes('auth/invalid-credential')) {
+        alert("Your session has expired. Please sign in again.");
+        // Force re-authentication
+        setShowAuthDemo(true);
+      } else {
+        alert("Error submitting timeline. Please try again.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const testEmailFunction = async () => {
+    try {
+      const response = await fetch('/api/test-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      const result = await response.json();
+      
+      if (response.ok && result.success) {
+        alert(`✅ ${result.message}\n\nUser: ${result.user}\nPassword: ${result.password}`);
+      } else {
+        alert(`❌ ${result.message}\n\nUser: ${result.user}\nPassword: ${result.password}`);
+      }
+    } catch (error) {
+      console.error('Error testing email configuration:', error);
+      alert('Error testing email configuration. Please check the console for details.');
+    }
+  }
+
+  // Show authentication demo if user is not signed in or if showAuthDemo is true
+  if (showAuthDemo) {
+    return <AuthDemo onBackToApp={() => setShowAuthDemo(false)} />
+  }
+
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-white border-b">
+        <div className="max-w-4xl mx-auto px-4 py-6">
+          {/* User info if signed in */}
+          {user && (
+            <div className="flex justify-between items-center mb-4">
+              <div className="text-sm text-gray-600">
+                Welcome, {userProfile?.firstName && userProfile?.lastName 
+                  ? `${userProfile.firstName} ${userProfile.lastName}`
+                  : userProfile?.displayName || user.email}
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={testEmailFunction}
+                >
+                  Test Email
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowAuthDemo(true)}
+                >
+                  Account
+                </Button>
+              </div>
+            </div>
+          )}
+          
+          <div className="text-center mb-6">
+            <div className="flex justify-center mb-4">
+              <Image
+                src="/kreitman-law-logo.png"
+                alt="Kreitman Law, LLC Logo"
+                width={96}
+                height={96}
+                quality={100}
+                priority
+                className="h-16 w-auto"
+                style={{ objectFit: 'contain' }}
+              />
+            </div>
+          </div>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+          {/* Progress Bar */}
+          <div className="space-y-2">
+            <div className="flex justify-between text-sm text-gray-600">
+              <span>
+                Step {currentStep} of {steps.length}
+              </span>
+              <span>{Math.round(progress)}% Complete</span>
+            </div>
+            <Progress value={progress} className="h-2" />
+          </div>
+
+          {/* Step Indicator */}
+          <div className="flex justify-between mt-4">
+            {steps.map((step) => (
+              <div
+                key={step.id}
+                className={`flex-1 text-center ${step.id <= currentStep ? "text-blue-600" : "text-gray-400"}`}
+              >
+                <div
+                  className={`w-8 h-8 rounded-full mx-auto mb-2 flex items-center justify-center text-sm font-medium ${
+                    step.id <= currentStep ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-400"
+                  }`}
+                >
+                  {step.id}
+                </div>
+                <div className="text-xs font-medium">{step.title}</div>
+              </div>
+            ))}
+          </div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      </div>
+
+      {/* Main Content */}
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-xl">{steps[currentStep - 1].title}</CardTitle>
+            <p className="text-gray-600">{steps[currentStep - 1].description}</p>
+          </CardHeader>
+          <CardContent>
+            {currentStep === 1 && <ContactForm contactInfo={contactInfo} setContactInfo={setContactInfo} />}
+
+            {currentStep === 2 && <EmployerForm employerInfo={employerInfo} setEmployerInfo={setEmployerInfo} />}
+
+            {currentStep === 3 && <EventBuilder events={events} setEvents={setEvents} userId={user?.uid || ''} />}
+
+            {currentStep === 4 && (
+              <TimelineReview
+                contactInfo={contactInfo}
+                employerInfo={employerInfo}
+                events={events}
+                setEvents={setEvents}
+              />
+            )}
+
+            {/* Navigation */}
+            <div className="flex justify-between mt-8 pt-6 border-t">
+              <Button variant="outline" onClick={handlePrevious} disabled={currentStep === 1}>
+                Previous
+              </Button>
+
+              {currentStep < steps.length ? (
+                <Button onClick={handleNext} className="bg-blue-600 hover:bg-blue-700">
+                  Next Page
+                </Button>
+              ) : (
+                <Button 
+                  onClick={handleSubmit} 
+                  className="bg-green-600 hover:bg-green-700"
+                  disabled={loading}
+                >
+                  {loading ? "Saving..." : existingSubmission ? "Update Timeline" : "Submit Timeline"}
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
-  );
+  )
 }
