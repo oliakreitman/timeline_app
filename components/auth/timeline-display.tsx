@@ -21,6 +21,16 @@ export const TimelineDisplay: React.FC<TimelineDisplayProps> = ({ timeline, onEd
     return date.toLocaleDateString();
   };
 
+  const formatEmployerDate = (dateString: string) => {
+    // Try to parse as a date, if it fails, return the original string
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+      // If it's not a valid date, return the approximate date string as-is
+      return dateString;
+    }
+    return date.toLocaleDateString();
+  };
+
   const sortEventsByDate = (events: typeof timeline.events) => {
     return events.sort((a, b) => {
       // Try to parse dates for sorting
@@ -90,7 +100,15 @@ export const TimelineDisplay: React.FC<TimelineDisplayProps> = ({ timeline, onEd
           <p><strong>Name:</strong> {timeline.contactInfo.firstName} {timeline.contactInfo.lastName}</p>
           <p><strong>Email:</strong> {timeline.contactInfo.email}</p>
           <p><strong>Phone:</strong> {timeline.contactInfo.phone}</p>
+          <p><strong>Birthday:</strong> {timeline.contactInfo.birthday ? formatDate(timeline.contactInfo.birthday) : 'Not provided'}</p>
           <p><strong>Address:</strong> {timeline.contactInfo.address}</p>
+          
+          {/* Emergency Contact Information */}
+          <div className="mt-4 pt-4 border-t border-gray-200">
+            <h4 className="font-semibold text-gray-900 mb-2">Emergency Contact</h4>
+            <p><strong>Name:</strong> {timeline.contactInfo.emergencyContactName || 'Not provided'}</p>
+            <p><strong>Phone:</strong> {timeline.contactInfo.emergencyContactPhone || 'Not provided'}</p>
+          </div>
         </CardContent>
       </Card>
 
@@ -103,7 +121,7 @@ export const TimelineDisplay: React.FC<TimelineDisplayProps> = ({ timeline, onEd
           <p><strong>Company:</strong> {timeline.employerInfo.companyName}</p>
           <p><strong>Location:</strong> {timeline.employerInfo.location}</p>
           <p><strong>Job Title:</strong> {timeline.employerInfo.jobTitle}</p>
-          <p><strong>Employment Period:</strong> {timeline.employerInfo.startDate} to {timeline.employerInfo.endDate}</p>
+          <p><strong>Employment Period:</strong> {formatEmployerDate(timeline.employerInfo.startDate)} to {timeline.employerInfo.endDate ? formatEmployerDate(timeline.employerInfo.endDate) : 'Current'}</p>
           <p><strong>Pay Rate:</strong> {timeline.employerInfo.payRate}</p>
           <p><strong>Employment Type:</strong> {timeline.employerInfo.employmentType}</p>
         </CardContent>
@@ -124,7 +142,7 @@ export const TimelineDisplay: React.FC<TimelineDisplayProps> = ({ timeline, onEd
                   <div key={event.id} className="border-l-2 border-blue-500 pl-4 pb-4">
                     <div className="flex items-center gap-2 mb-2">
                       <span className="text-sm font-medium text-blue-600">
-                        {formatDate(event.approximateDate)}
+                        <strong>Event Date:</strong> {formatDate(event.approximateDate)}
                       </span>
                       <span className="text-xs px-2 py-1 bg-gray-100 rounded-full">
                         {event.type}
@@ -132,6 +150,37 @@ export const TimelineDisplay: React.FC<TimelineDisplayProps> = ({ timeline, onEd
                     </div>
                     <h4 className="font-semibold mb-1">{event.title}</h4>
                     <p className="text-gray-600 text-sm mb-2">{event.description}</p>
+                    
+                    {/* Display complaint information if any */}
+                    {event.didComplain && (
+                      <div className="mb-2 p-2 bg-orange-50 border border-orange-200 rounded text-sm">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-orange-600 font-medium">📢 Complaint Filed</span>
+                        </div>
+                        {(() => {
+                          // If event is linked to a complaint, show complaint data
+                          if (event.complaintId && timeline.complaints) {
+                            const linkedComplaint = timeline.complaints.find(c => c.id === event.complaintId);
+                            if (linkedComplaint) {
+                              return (
+                                <>
+                                  <p><strong>Complaint Title:</strong> {linkedComplaint.title}</p>
+                                  <p><strong>Complained to:</strong> {linkedComplaint.complaintTo}</p>
+                                  <p><strong>When Complained:</strong> {formatDate(linkedComplaint.complaintDate)}</p>
+                                </>
+                              );
+                            }
+                          }
+                          // Fallback to event's own complaint data if no linked complaint found
+                          return (
+                            <>
+                              <p><strong>Complained to:</strong> {event.complaintTo || 'Not specified'}</p>
+                              <p><strong>When Complained:</strong> {event.complaintDate ? formatDate(event.complaintDate) : 'Not specified'}</p>
+                            </>
+                          );
+                        })()}
+                      </div>
+                    )}
                     
                     {/* Display attachments if any */}
                     {event.attachments && event.attachments.length > 0 && (

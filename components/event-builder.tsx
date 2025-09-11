@@ -1,11 +1,11 @@
-import { useState } from "react"
+import React, { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select } from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { TimelineEvent } from "@/app/page"
+import { TimelineEvent, Complaint } from "@/app/page"
 import { Plus, Trash2, Edit } from "lucide-react"
 import { sortTimelineEvents } from "@/lib/utils"
 import { uploadFile } from "@/lib/database"
@@ -13,10 +13,12 @@ import { uploadFile } from "@/lib/database"
 interface EventBuilderProps {
   events: TimelineEvent[]
   setEvents: (events: TimelineEvent[]) => void
+  complaints: Complaint[]
+  setComplaints: React.Dispatch<React.SetStateAction<Complaint[]>>
   userId: string
 }
 
-export function EventBuilder({ events, setEvents, userId }: EventBuilderProps) {
+export function EventBuilder({ events, setEvents, complaints, setComplaints, userId }: EventBuilderProps) {
   const [isAdding, setIsAdding] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [useExactDate, setUseExactDate] = useState(true)
@@ -26,11 +28,27 @@ export function EventBuilder({ events, setEvents, userId }: EventBuilderProps) {
     description: "",
     approximateDate: "",
     details: {},
-    attachments: []
+    attachments: [],
+    didComplain: false,
+    complaintTo: "",
+    complaintDate: ""
   })
   
   // Store actual File objects for upload
   const [filesToUpload, setFilesToUpload] = useState<File[]>([])
+  
+  // Complaint tracking state
+  const [showComplaintQuestion, setShowComplaintQuestion] = useState(false)
+  const [isCreatingNewComplaint, setIsCreatingNewComplaint] = useState(false)
+  const [selectedComplaintId, setSelectedComplaintId] = useState<string>("")
+  const [newComplaint, setNewComplaint] = useState<Partial<Complaint>>({
+    title: "",
+    description: "",
+    approximateDate: "",
+    complaintTo: "",
+    complaintDate: "",
+    status: "pending"
+  })
 
   const eventTypes = [
     { value: "harassment", label: "Harassment/Discrimination" },
@@ -165,7 +183,40 @@ export function EventBuilder({ events, setEvents, userId }: EventBuilderProps) {
           description: currentEvent.description,
           approximateDate: currentEvent.approximateDate,
           details: currentEvent.details || {},
-          attachments: attachmentsWithUrls
+          attachments: attachmentsWithUrls,
+          didComplain: currentEvent.didComplain || false,
+          complaintTo: currentEvent.complaintTo || "",
+          complaintDate: currentEvent.complaintDate || "",
+          complaintId: currentEvent.complaintId || ""
+        }
+
+        // Handle complaint creation if needed
+        let complaintId = currentEvent.complaintId
+        if (currentEvent.didComplain && isCreatingNewComplaint && newComplaint.title && newComplaint.description && newComplaint.complaintTo && newComplaint.complaintDate) {
+          const newComplaintData: Complaint = {
+            id: Date.now().toString() + "_complaint",
+            userId: userId,
+            title: newComplaint.title,
+            description: newComplaint.description,
+            approximateDate: currentEvent.approximateDate, // When the incident happened (same as event date)
+            complaintTo: newComplaint.complaintTo,
+            complaintDate: newComplaint.complaintDate, // When they actually complained
+            status: "pending",
+            relatedEventIds: [newEvent.id],
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          }
+          
+          setComplaints(prev => [...prev, newComplaintData])
+          complaintId = newComplaintData.id
+          newEvent.complaintId = complaintId
+        } else if (currentEvent.didComplain && selectedComplaintId) {
+          // Add event to existing complaint
+          setComplaints(prev => prev.map(complaint => 
+            complaint.id === selectedComplaintId 
+              ? { ...complaint, relatedEventIds: [...complaint.relatedEventIds, newEvent.id] }
+              : complaint
+          ))
         }
         
         // Add new event and maintain sorting
@@ -246,12 +297,27 @@ export function EventBuilder({ events, setEvents, userId }: EventBuilderProps) {
       description: "",
       approximateDate: "",
       details: {},
-      attachments: []
+      attachments: [],
+      didComplain: false,
+      complaintTo: "",
+      complaintDate: "",
+      complaintId: ""
     })
     setFilesToUpload([])
     setIsAdding(false)
     setEditingId(null)
     setUseExactDate(true)
+    setShowComplaintQuestion(false)
+    setIsCreatingNewComplaint(false)
+    setSelectedComplaintId("")
+    setNewComplaint({
+      title: "",
+      description: "",
+      approximateDate: "",
+      complaintTo: "",
+      complaintDate: "",
+      status: "pending"
+    })
   }
 
   return (
@@ -428,6 +494,171 @@ export function EventBuilder({ events, setEvents, userId }: EventBuilderProps) {
                   </div>
                 </div>
               )}
+            </div>
+
+            {/* Complaint Tracking Section */}
+            <div className="space-y-4 pt-6 border-t border-gray-200">
+              <div className="space-y-2">
+                <Label className="text-base font-semibold">Complaint Tracking</Label>
+                <p className="text-sm text-muted-foreground">
+                  Did you complain about this incident? This helps track your complaint history.
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex gap-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="didComplain"
+                      checked={currentEvent.didComplain === true}
+                      onChange={() => {
+                        setCurrentEvent({ ...currentEvent, didComplain: true })
+                        setShowComplaintQuestion(true)
+                      }}
+                      className="w-4 h-4 text-blue-600"
+                    />
+                    <span className="text-sm">Yes, I complained about this</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="didComplain"
+                      checked={currentEvent.didComplain === false}
+                      onChange={() => {
+                        setCurrentEvent({ ...currentEvent, didComplain: false, complaintTo: "", complaintDate: "", complaintId: "" })
+                        setShowComplaintQuestion(false)
+                      }}
+                      className="w-4 h-4 text-blue-600"
+                    />
+                    <span className="text-sm">No, I did not complain</span>
+                  </label>
+                </div>
+
+                {currentEvent.didComplain && showComplaintQuestion && (
+                  <div className="space-y-4 p-4 bg-gray-50 rounded-lg">
+                    <div className="space-y-2">
+                      <Label>Is this complaint part of an existing complaint?</Label>
+                      <div className="flex gap-4">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="complaintType"
+                            checked={!isCreatingNewComplaint}
+                            onChange={() => {
+                              setIsCreatingNewComplaint(false)
+                              setSelectedComplaintId("")
+                            }}
+                            className="w-4 h-4 text-blue-600"
+                          />
+                          <span className="text-sm">Yes, add to existing complaint</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="complaintType"
+                            checked={isCreatingNewComplaint}
+                            onChange={() => {
+                              setIsCreatingNewComplaint(true)
+                              setSelectedComplaintId("")
+                            }}
+                            className="w-4 h-4 text-blue-600"
+                          />
+                          <span className="text-sm">No, create new complaint</span>
+                        </label>
+                      </div>
+                    </div>
+
+                    {!isCreatingNewComplaint && complaints.length > 0 && (
+                      <div className="space-y-2">
+                        <Label htmlFor="existingComplaint">Select Existing Complaint</Label>
+                        <Select
+                          id="existingComplaint"
+                          value={selectedComplaintId}
+                          onChange={(e) => {
+                            setSelectedComplaintId(e.target.value)
+                            const complaint = complaints.find(c => c.id === e.target.value)
+                            if (complaint) {
+                              setCurrentEvent({
+                                ...currentEvent,
+                                complaintId: complaint.id,
+                                complaintTo: complaint.complaintTo,
+                                complaintDate: complaint.complaintDate
+                              })
+                            }
+                          }}
+                        >
+                          <option value="">Select a complaint...</option>
+                          {complaints.map(complaint => (
+                            <option key={complaint.id} value={complaint.id}>
+                              {complaint.title} - {complaint.complaintTo} ({complaint.approximateDate})
+                            </option>
+                          ))}
+                        </Select>
+                      </div>
+                    )}
+
+                    {isCreatingNewComplaint && (
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="complaintTitle">Complaint Title *</Label>
+                          <Input
+                            id="complaintTitle"
+                            value={newComplaint.title || ""}
+                            onChange={(e) => setNewComplaint({ ...newComplaint, title: e.target.value })}
+                            placeholder="e.g., 'Harassment Complaint to HR'"
+                            required
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="complaintDescription">Complaint Description *</Label>
+                          <Textarea
+                            id="complaintDescription"
+                            value={newComplaint.description || ""}
+                            onChange={(e) => setNewComplaint({ ...newComplaint, description: e.target.value })}
+                            placeholder="Describe what you complained about..."
+                            className="min-h-[80px]"
+                            required
+                          />
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="complaintTo">Who did you complain to? *</Label>
+                            <Input
+                              id="complaintTo"
+                              value={newComplaint.complaintTo || ""}
+                              onChange={(e) => setNewComplaint({ ...newComplaint, complaintTo: e.target.value })}
+                              placeholder="e.g., 'HR Department', 'Manager Name'"
+                              required
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="complaintDate">When did you complain? *</Label>
+                            <Input
+                              id="complaintDate"
+                              type="date"
+                              value={newComplaint.complaintDate || ""}
+                              onChange={(e) => setNewComplaint({ ...newComplaint, complaintDate: e.target.value })}
+                              required
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {!isCreatingNewComplaint && selectedComplaintId && (
+                      <div className="space-y-2">
+                        <Label>Complaint Details</Label>
+                        <div className="p-3 bg-white rounded border text-sm">
+                          <p><strong>Complaint:</strong> {complaints.find(c => c.id === selectedComplaintId)?.title}</p>
+                          <p><strong>Complained to:</strong> {currentEvent.complaintTo}</p>
+                          <p><strong>Date:</strong> {currentEvent.complaintDate}</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="flex gap-2">

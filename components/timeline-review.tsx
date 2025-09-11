@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { ContactInfo, EmployerInfo, TimelineEvent } from "@/app/page"
+import { ContactInfo, EmployerInfo, TimelineEvent, Complaint } from "@/app/page"
 import { CalendarDays, Building2, User, FileText, GripVertical, ArrowUpDown, Clock } from "lucide-react"
 
 interface TimelineReviewProps {
@@ -9,9 +9,10 @@ interface TimelineReviewProps {
   employerInfo: EmployerInfo
   events: TimelineEvent[]
   setEvents: (events: TimelineEvent[]) => void
+  complaints: Complaint[]
 }
 
-export function TimelineReview({ contactInfo, employerInfo, events, setEvents }: TimelineReviewProps) {
+export function TimelineReview({ contactInfo, employerInfo, events, setEvents, complaints }: TimelineReviewProps) {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
   const [draggedOver, setDraggedOver] = useState<number | null>(null)
   const [isChronological, setIsChronological] = useState(true)
@@ -19,9 +20,25 @@ export function TimelineReview({ contactInfo, employerInfo, events, setEvents }:
   // Helper function to format dates - handles both exact dates and approximate text
   const formatEventDate = (dateString: string) => {
     // Try to parse as a date first
-    const parsedDate = new Date(dateString)
-    if (!isNaN(parsedDate.getTime()) && dateString.includes('-')) {
+    if (dateString.includes('-')) {
       // It's a valid date string (YYYY-MM-DD format)
+      // Parse it as local date to avoid timezone issues
+      const [year, month, day] = dateString.split('-').map(Number);
+      const parsedDate = new Date(year, month - 1, day); // month is 0-indexed
+      return parsedDate.toLocaleDateString()
+    }
+    // It's approximate text, return as-is
+    return dateString
+  }
+
+  // Helper function to format employer dates - handles both exact dates and approximate text
+  const formatEmployerDate = (dateString: string) => {
+    // Try to parse as a date first
+    if (dateString.includes('-')) {
+      // It's a valid date string (YYYY-MM-DD format)
+      // Parse it as local date to avoid timezone issues
+      const [year, month, day] = dateString.split('-').map(Number);
+      const parsedDate = new Date(year, month - 1, day); // month is 0-indexed
       return parsedDate.toLocaleDateString()
     }
     // It's approximate text, return as-is
@@ -193,8 +210,27 @@ export function TimelineReview({ contactInfo, employerInfo, events, setEvents }:
               <p>{contactInfo.phone}</p>
             </div>
             <div>
+              <p className="text-sm font-medium text-muted-foreground">Birthday</p>
+              <p>{contactInfo.birthday ? new Date(contactInfo.birthday).toLocaleDateString() : 'Not provided'}</p>
+            </div>
+            <div>
               <p className="text-sm font-medium text-muted-foreground">Address</p>
               <p>{contactInfo.address}</p>
+            </div>
+          </div>
+          
+          {/* Emergency Contact Information */}
+          <div className="mt-6 pt-6 border-t border-gray-200">
+            <h4 className="text-sm font-semibold text-gray-900 mb-4">Emergency Contact</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Emergency Contact Name</p>
+                <p>{contactInfo.emergencyContactName || 'Not provided'}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Emergency Contact Phone</p>
+                <p>{contactInfo.emergencyContactPhone || 'Not provided'}</p>
+              </div>
             </div>
           </div>
         </CardContent>
@@ -228,11 +264,11 @@ export function TimelineReview({ contactInfo, employerInfo, events, setEvents }:
             </div>
             <div>
               <p className="text-sm font-medium text-muted-foreground">Start Date</p>
-              <p>{new Date(employerInfo.startDate).toLocaleDateString()}</p>
+              <p>{formatEmployerDate(employerInfo.startDate)}</p>
             </div>
             <div>
               <p className="text-sm font-medium text-muted-foreground">End Date</p>
-              <p>{employerInfo.endDate ? new Date(employerInfo.endDate).toLocaleDateString() : 'Current'}</p>
+              <p>{employerInfo.endDate ? formatEmployerDate(employerInfo.endDate) : 'Current'}</p>
             </div>
             {employerInfo.payRate && (
               <div>
@@ -243,6 +279,38 @@ export function TimelineReview({ contactInfo, employerInfo, events, setEvents }:
           </div>
         </CardContent>
       </Card>
+
+      {/* Complaints Section */}
+      {complaints.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Complaints ({complaints.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {complaints.map((complaint) => (
+                <div key={complaint.id} className="border-l-4 border-orange-500 pl-4 py-2">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-sm font-medium text-orange-600">
+                      <strong>Incident Date:</strong> {formatEventDate(complaint.approximateDate)}
+                    </span>
+                  </div>
+                  <h4 className="font-semibold mb-1">{complaint.title}</h4>
+                  <p className="text-gray-600 text-sm mb-2">{complaint.description}</p>
+                  <div className="text-xs text-gray-500 space-y-1">
+                    <p><strong>Complained to:</strong> {complaint.complaintTo}</p>
+                    <p><strong>Complaint Date:</strong> {formatEventDate(complaint.complaintDate)}</p>
+                    <p><strong>Related Events:</strong> {complaint.relatedEventIds.length} incident(s)</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Timeline Events */}
       <Card>
@@ -320,11 +388,42 @@ export function TimelineReview({ contactInfo, employerInfo, events, setEvents }:
                           {eventTypes.find(t => t.value === event.type)?.label || event.type}
                         </span>
                         <span className="text-sm text-muted-foreground">
-                          {formatEventDate(event.approximateDate)}
+                          <strong>Event Date:</strong> {formatEventDate(event.approximateDate)}
                         </span>
                       </div>
                       <h4 className="font-semibold mb-1">{event.title}</h4>
                       <p className="text-sm text-muted-foreground">{event.description}</p>
+                      
+                      {/* Complaint Information */}
+                      {event.didComplain && (
+                        <div className="mt-2 p-2 bg-orange-50 border border-orange-200 rounded text-sm">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-orange-600 font-medium">📢 Complaint Filed</span>
+                          </div>
+                          {(() => {
+                            // If event is linked to a complaint, show complaint data
+                            if (event.complaintId) {
+                              const linkedComplaint = complaints.find(c => c.id === event.complaintId);
+                              if (linkedComplaint) {
+                                return (
+                                  <>
+                                    <p><strong>Complaint Title:</strong> {linkedComplaint.title}</p>
+                                    <p><strong>Complained to:</strong> {linkedComplaint.complaintTo}</p>
+                                    <p><strong>When Complained:</strong> {formatEventDate(linkedComplaint.complaintDate)}</p>
+                                  </>
+                                );
+                              }
+                            }
+                            // Fallback to event's own complaint data if no linked complaint found
+                            return (
+                              <>
+                                <p><strong>Complained to:</strong> {event.complaintTo || 'Not specified'}</p>
+                                <p><strong>Date:</strong> {event.complaintDate ? formatEventDate(event.complaintDate) : 'Not specified'}</p>
+                              </>
+                            );
+                          })()}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

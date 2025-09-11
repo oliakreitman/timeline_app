@@ -1,0 +1,48 @@
+# Firestore Security Rules for Timeline App
+
+## Current Rules (from FIREBASE_SETUP.md)
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Users can only access their own profile
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Users can only access their own timeline events
+    match /timelineEvents/{eventId} {
+      allow read, write: if request.auth != null && 
+        request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null && 
+        request.auth.uid == request.resource.data.userId;
+    }
+    
+    // Users can only access their own timeline submissions
+    match /timelineSubmissions/{submissionId} {
+      allow read, write: if request.auth != null && 
+        request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null && 
+        request.auth.uid == request.resource.data.userId;
+    }
+  }
+}
+
+## Temporary Development Rules (for testing)
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}
+
+## Storage Security Rules
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /timeline-attachments/{userId}/{eventId}/{fileName} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}

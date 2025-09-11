@@ -9,10 +9,12 @@ import { EmployerForm } from "@/components/employer-form"
 import { EventBuilder } from "@/components/event-builder"
 import { TimelineReview } from "@/components/timeline-review"
 import { AuthDemo } from "@/components/auth/auth-demo"
+import { SuccessModal } from "@/components/ui/success-modal"
 import { useAuth } from "@/lib/auth-context"
 import { saveTimelineSubmission, getUserTimelineSubmission, TimelineSubmission } from "@/lib/database"
 import { sortTimelineEvents } from "@/lib/utils"
 import { isUserAuthenticated } from "@/lib/auth"
+import { FormCache, CACHE_KEYS } from "@/lib/cache"
 import { Scale } from "lucide-react"
 import Image from "next/image"
 
@@ -22,6 +24,9 @@ export interface ContactInfo {
   email: string
   phone: string
   address: string
+  birthday: string
+  emergencyContactName: string
+  emergencyContactPhone: string
 }
 
 export interface EmployerInfo {
@@ -32,6 +37,8 @@ export interface EmployerInfo {
   endDate: string
   payRate: string
   employmentType: string
+  useExactStartDate?: boolean
+  useExactEndDate?: boolean
 }
 
 export interface TimelineEvent {
@@ -48,6 +55,24 @@ export interface TimelineEvent {
     size: number
     url?: string
   }>
+  complaintId?: string // Link to complaint if this event was part of a complaint
+  didComplain?: boolean // Whether user complained about this incident
+  complaintTo?: string // Who they complained to
+  complaintDate?: string // When they complained
+}
+
+export interface Complaint {
+  id?: string
+  userId: string
+  title: string
+  description: string
+  approximateDate: string
+  complaintTo: string
+  complaintDate: string
+  status: 'pending' | 'investigated' | 'resolved' | 'dismissed'
+  relatedEventIds: string[]
+  createdAt: string
+  updatedAt: string
 }
 
 const steps = [
@@ -67,6 +92,9 @@ export default function IntakeForm() {
     email: "",
     phone: "",
     address: "",
+    birthday: "",
+    emergencyContactName: "",
+    emergencyContactPhone: "",
   })
   const [employerInfo, setEmployerInfo] = useState<EmployerInfo>({
     companyName: "",
@@ -78,8 +106,11 @@ export default function IntakeForm() {
     employmentType: "",
   })
   const [events, setEvents] = useState<TimelineEvent[]>([])
+  const [complaints, setComplaints] = useState<Complaint[]>([])
   const [existingSubmission, setExistingSubmission] = useState<TimelineSubmission | null>(null)
   const [loading, setLoading] = useState(false)
+  const [showSuccessModal, setShowSuccessModal] = useState(false)
+  const [successMessage, setSuccessMessage] = useState("")
 
   const progress = (currentStep / steps.length) * 100
 
@@ -92,11 +123,25 @@ export default function IntakeForm() {
           const submission = await getUserTimelineSubmission(user.uid);
           if (submission) {
             setExistingSubmission(submission);
-            setContactInfo(submission.contactInfo);
+            // Ensure all contact info fields are defined to prevent controlled/uncontrolled input errors
+            setContactInfo({
+              firstName: submission.contactInfo.firstName || "",
+              lastName: submission.contactInfo.lastName || "",
+              email: submission.contactInfo.email || "",
+              phone: submission.contactInfo.phone || "",
+              address: submission.contactInfo.address || "",
+              birthday: submission.contactInfo.birthday || "",
+              emergencyContactName: submission.contactInfo.emergencyContactName || "",
+              emergencyContactPhone: submission.contactInfo.emergencyContactPhone || "",
+            });
             setEmployerInfo(submission.employerInfo);
             // Sort events before setting them in state
             const sortedEvents = sortTimelineEvents([...submission.events]);
             setEvents(sortedEvents);
+            // Load complaints if they exist
+            if (submission.complaints) {
+              setComplaints(submission.complaints);
+            }
           }
         } catch (error) {
           console.error("Error loading existing timeline:", error);
@@ -108,6 +153,64 @@ export default function IntakeForm() {
 
     loadExistingTimeline();
   }, [user]);
+
+  // Auto-save form data to cache
+  useEffect(() => {
+    if (user) {
+      FormCache.set(CACHE_KEYS.CONTACT_INFO, contactInfo);
+    }
+  }, [contactInfo, user]);
+
+  useEffect(() => {
+    if (user) {
+      FormCache.set(CACHE_KEYS.EMPLOYER_INFO, employerInfo);
+    }
+  }, [employerInfo, user]);
+
+  useEffect(() => {
+    if (user) {
+      FormCache.set(CACHE_KEYS.EVENTS, events);
+    }
+  }, [events, user]);
+
+  useEffect(() => {
+    if (user) {
+      FormCache.set(CACHE_KEYS.COMPLAINTS, complaints);
+    }
+  }, [complaints, user]);
+
+  useEffect(() => {
+    if (user) {
+      FormCache.set(CACHE_KEYS.CURRENT_STEP, currentStep);
+    }
+  }, [currentStep, user]);
+
+  // Load cached data on component mount
+  useEffect(() => {
+    if (user && !existingSubmission) {
+      const cachedContactInfo = FormCache.get<ContactInfo>(CACHE_KEYS.CONTACT_INFO);
+      const cachedEmployerInfo = FormCache.get<EmployerInfo>(CACHE_KEYS.EMPLOYER_INFO);
+      const cachedEvents = FormCache.get<TimelineEvent[]>(CACHE_KEYS.EVENTS);
+      const cachedComplaints = FormCache.get<Complaint[]>(CACHE_KEYS.COMPLAINTS);
+      const cachedStep = FormCache.get<number>(CACHE_KEYS.CURRENT_STEP);
+
+      if (cachedContactInfo) {
+        setContactInfo(cachedContactInfo);
+      }
+      if (cachedEmployerInfo) {
+        setEmployerInfo(cachedEmployerInfo);
+      }
+      if (cachedEvents) {
+        setEvents(cachedEvents);
+      }
+      if (cachedComplaints) {
+        setComplaints(cachedComplaints);
+      }
+      if (cachedStep) {
+        setCurrentStep(cachedStep);
+      }
+    }
+  }, [user, existingSubmission]);
 
   // Show auth demo when no user, hide when user logs in
   useEffect(() => {
@@ -151,6 +254,7 @@ export default function IntakeForm() {
         contactInfo,
         employerInfo,
         events,
+        complaints,
         status: 'submitted' as const
       };
 
@@ -193,7 +297,12 @@ export default function IntakeForm() {
         alert('Timeline saved successfully, but email notification failed. Please check the console for details.');
       }
 
-      alert(existingSubmission ? "Timeline updated successfully!" : "Timeline submitted successfully!");
+      // Clear cache after successful submission
+      FormCache.clear();
+      
+      // Show success modal
+      setSuccessMessage(existingSubmission ? "Timeline updated successfully! You can review or change it under \"Account\" page" : "Timeline submitted successfully! You can review or change it under \"Account\" page");
+      setShowSuccessModal(true);
     } catch (error) {
       console.error("Error submitting timeline:", error);
       
@@ -210,27 +319,6 @@ export default function IntakeForm() {
     }
   }
 
-  const testEmailFunction = async () => {
-    try {
-      const response = await fetch('/api/test-email', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-      
-      const result = await response.json();
-      
-      if (response.ok && result.success) {
-        alert(`✅ ${result.message}\n\nUser: ${result.user}\nPassword: ${result.password}`);
-      } else {
-        alert(`❌ ${result.message}\n\nUser: ${result.user}\nPassword: ${result.password}`);
-      }
-    } catch (error) {
-      console.error('Error testing email configuration:', error);
-      alert('Error testing email configuration. Please check the console for details.');
-    }
-  }
 
   // Show authentication demo if user is not signed in or if showAuthDemo is true
   if (showAuthDemo) {
@@ -251,13 +339,6 @@ export default function IntakeForm() {
                   : userProfile?.displayName || user.email}
               </div>
               <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={testEmailFunction}
-                >
-                  Test Email
-                </Button>
                 <Button
                   variant="outline"
                   size="sm"
@@ -328,7 +409,7 @@ export default function IntakeForm() {
 
             {currentStep === 2 && <EmployerForm employerInfo={employerInfo} setEmployerInfo={setEmployerInfo} />}
 
-            {currentStep === 3 && <EventBuilder events={events} setEvents={setEvents} userId={user?.uid || ''} />}
+            {currentStep === 3 && <EventBuilder events={events} setEvents={setEvents} complaints={complaints} setComplaints={setComplaints} userId={user?.uid || ''} />}
 
             {currentStep === 4 && (
               <TimelineReview
@@ -336,6 +417,7 @@ export default function IntakeForm() {
                 employerInfo={employerInfo}
                 events={events}
                 setEvents={setEvents}
+                complaints={complaints}
               />
             )}
 
@@ -350,8 +432,8 @@ export default function IntakeForm() {
                   Next Page
                 </Button>
               ) : (
-                <Button 
-                  onClick={handleSubmit} 
+                <Button
+                  onClick={handleSubmit}
                   className="bg-green-600 hover:bg-green-700"
                   disabled={loading}
                 >
@@ -362,6 +444,15 @@ export default function IntakeForm() {
           </CardContent>
         </Card>
       </div>
+      
+      {/* Success Modal */}
+      <SuccessModal
+        isOpen={showSuccessModal}
+        onClose={() => setShowSuccessModal(false)}
+        title={existingSubmission ? "Timeline Updated!" : "Timeline Submitted!"}
+        message={successMessage}
+        isUpdate={!!existingSubmission}
+      />
     </div>
   )
 }

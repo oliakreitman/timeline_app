@@ -16,6 +16,7 @@ import {
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { db, storage } from "./firebase";
+import { auth } from "./firebase";
 
 export interface UserProfile {
   email: string;
@@ -37,12 +38,29 @@ export interface TimelineEvent {
   updatedAt: string;
 }
 
+export interface Complaint {
+  id?: string;
+  userId: string;
+  title: string;
+  description: string;
+  approximateDate: string;
+  complaintTo: string; // Who they complained to
+  complaintDate: string; // When they complained
+  status: 'pending' | 'investigated' | 'resolved' | 'dismissed';
+  relatedEventIds: string[]; // IDs of events that are part of this complaint
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface ContactInfo {
   firstName: string;
   lastName: string;
   email: string;
   phone: string;
   address: string;
+  birthday: string;
+  emergencyContactName: string;
+  emergencyContactPhone: string;
 }
 
 export interface EmployerInfo {
@@ -53,6 +71,8 @@ export interface EmployerInfo {
   endDate: string;
   payRate: string;
   employmentType: string;
+  useExactStartDate?: boolean;
+  useExactEndDate?: boolean;
 }
 
 export interface TimelineSubmission {
@@ -74,24 +94,68 @@ export interface TimelineSubmission {
       size: number;
       url?: string;
     }>;
+    complaintId?: string;
+    didComplain?: boolean;
+    complaintTo?: string;
+    complaintDate?: string;
   }>;
+  complaints?: Complaint[];
   submittedAt: string;
   updatedAt: string;
   status: 'draft' | 'submitted' | 'reviewed';
 }
 
+// Helper function to check authentication
+const checkAuth = (): string => {
+  const user = auth.currentUser;
+  if (!user) {
+    throw new Error("User must be authenticated to perform this action");
+  }
+  return user.uid;
+};
+
+// Helper function to handle Firebase errors
+const handleFirebaseError = (error: any, operation: string): never => {
+  console.error(`Error in ${operation}:`, error);
+  
+  if (error.code === 'permission-denied') {
+    throw new Error("You don't have permission to perform this action. Please make sure you're signed in and try again.");
+  } else if (error.code === 'unauthenticated') {
+    throw new Error("You must be signed in to perform this action.");
+  } else if (error.code === 'not-found') {
+    throw new Error("The requested resource was not found.");
+  } else if (error.code === 'already-exists') {
+    throw new Error("A resource with this ID already exists.");
+  } else if (error.code === 'failed-precondition') {
+    throw new Error("The operation failed due to a precondition check.");
+  } else {
+    throw new Error(`Firebase error: ${error.message || 'Unknown error occurred'}`);
+  }
+};
+
 // User Profile Operations
 export const createUserProfile = async (userId: string, userData: UserProfile): Promise<void> => {
   try {
+    // Verify the user is authenticated and matches the userId
+    const currentUserId = checkAuth();
+    if (currentUserId !== userId) {
+      throw new Error("User ID mismatch: Cannot create profile for different user");
+    }
+    
     await setDoc(doc(db, "users", userId), userData);
   } catch (error) {
-    console.error("Error creating user profile:", error);
-    throw error;
+    handleFirebaseError(error, "createUserProfile");
   }
 };
 
 export const getUserProfile = async (userId: string): Promise<UserProfile | null> => {
   try {
+    // Verify the user is authenticated and matches the userId
+    const currentUserId = checkAuth();
+    if (currentUserId !== userId) {
+      throw new Error("User ID mismatch: Cannot access profile for different user");
+    }
+    
     const docRef = doc(db, "users", userId);
     const docSnap = await getDoc(docRef);
     
@@ -101,27 +165,37 @@ export const getUserProfile = async (userId: string): Promise<UserProfile | null
       return null;
     }
   } catch (error) {
-    console.error("Error getting user profile:", error);
-    throw error;
+    handleFirebaseError(error, "getUserProfile");
   }
 };
 
 export const updateUserProfile = async (userId: string, userData: Partial<UserProfile>): Promise<void> => {
   try {
+    // Verify the user is authenticated and matches the userId
+    const currentUserId = checkAuth();
+    if (currentUserId !== userId) {
+      throw new Error("User ID mismatch: Cannot update profile for different user");
+    }
+    
     const docRef = doc(db, "users", userId);
     await updateDoc(docRef, {
       ...userData,
       updatedAt: new Date().toISOString()
     });
   } catch (error) {
-    console.error("Error updating user profile:", error);
-    throw error;
+    handleFirebaseError(error, "updateUserProfile");
   }
 };
 
 // Timeline Events Operations
 export const createTimelineEvent = async (eventData: Omit<TimelineEvent, 'id'>): Promise<string> => {
   try {
+    // Verify the user is authenticated and matches the userId
+    const currentUserId = checkAuth();
+    if (currentUserId !== eventData.userId) {
+      throw new Error("User ID mismatch: Cannot create event for different user");
+    }
+    
     const docRef = await addDoc(collection(db, "timelineEvents"), {
       ...eventData,
       createdAt: new Date().toISOString(),
@@ -129,8 +203,7 @@ export const createTimelineEvent = async (eventData: Omit<TimelineEvent, 'id'>):
     });
     return docRef.id;
   } catch (error) {
-    console.error("Error creating timeline event:", error);
-    throw error;
+    handleFirebaseError(error, "createTimelineEvent");
   }
 };
 
@@ -155,6 +228,12 @@ export const getTimelineEvent = async (eventId: string): Promise<TimelineEvent |
 
 export const getUserTimelineEvents = async (userId: string): Promise<TimelineEvent[]> => {
   try {
+    // Verify the user is authenticated and matches the userId
+    const currentUserId = checkAuth();
+    if (currentUserId !== userId) {
+      throw new Error("User ID mismatch: Cannot access events for different user");
+    }
+    
     const q = query(
       collection(db, "timelineEvents"),
       where("userId", "==", userId),
@@ -173,8 +252,7 @@ export const getUserTimelineEvents = async (userId: string): Promise<TimelineEve
     
     return events;
   } catch (error) {
-    console.error("Error getting user timeline events:", error);
-    throw error;
+    handleFirebaseError(error, "getUserTimelineEvents");
   }
 };
 
