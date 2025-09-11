@@ -165,6 +165,8 @@ export const getUserProfile = async (userId: string): Promise<UserProfile | null
     }
   } catch (error) {
     handleFirebaseError(error, "getUserProfile");
+    // This line will never be reached, but satisfies TypeScript
+    return null;
   }
 };
 
@@ -203,6 +205,8 @@ export const createTimelineEvent = async (eventData: Omit<TimelineEvent, 'id'>):
     return docRef.id;
   } catch (error) {
     handleFirebaseError(error, "createTimelineEvent");
+    // This line will never be reached, but satisfies TypeScript
+    return "";
   }
 };
 
@@ -252,6 +256,8 @@ export const getUserTimelineEvents = async (userId: string): Promise<TimelineEve
     return events;
   } catch (error) {
     handleFirebaseError(error, "getUserTimelineEvents");
+    // This line will never be reached, but satisfies TypeScript
+    return [];
   }
 };
 
