@@ -19,7 +19,27 @@ export const TimelineDisplay: React.FC<TimelineDisplayProps> = ({ timeline, onEd
       return dateString;
     }
     return date.toLocaleDateString();
-  };
+  }
+
+  // Convert complaints to timeline events
+  const complaintEvents = timeline.complaints?.map(complaint => ({
+    id: `complaint_${complaint.id}`,
+    type: "Complaint",
+    title: complaint.title,
+    description: complaint.description,
+    approximateDate: complaint.complaintDate, // Use complaint date for chronological sorting
+    details: {
+      complaintTo: complaint.complaintTo,
+      incidentDate: complaint.approximateDate,
+      relatedEventIds: complaint.relatedEventIds
+    },
+    attachments: [],
+    isComplaint: true,
+    complaintId: complaint.id
+  })) || []
+
+  // Merge events and complaint events
+  const allEvents: (typeof timeline.events[0] | typeof complaintEvents[0])[] = [...timeline.events, ...complaintEvents];
 
   const formatEmployerDate = (dateString: string) => {
     // Try to parse as a date, if it fails, return the original string
@@ -130,26 +150,37 @@ export const TimelineDisplay: React.FC<TimelineDisplayProps> = ({ timeline, onEd
       {/* Timeline Events */}
       <Card>
         <CardHeader>
-          <CardTitle>Timeline Events ({timeline.events.length})</CardTitle>
+          <CardTitle>Timeline Events ({allEvents.length})</CardTitle>
         </CardHeader>
         <CardContent>
-          {timeline.events.length === 0 ? (
+          {allEvents.length === 0 ? (
             <p className="text-gray-500">No events recorded</p>
           ) : (
             <div className="space-y-4">
-              {sortEventsByDate(timeline.events)
+              {sortEventsByDate(allEvents)
                 .map((event, index) => (
-                  <div key={event.id} className="border-l-2 border-blue-500 pl-4 pb-4">
+                  <div key={event.id} className={`border-l-2 ${('isComplaint' in event && event.isComplaint) ? 'border-orange-500' : 'border-blue-500'} pl-4 pb-4`}>
                     <div className="flex items-center gap-2 mb-2">
                       <span className="text-sm font-medium text-blue-600">
-                        <strong>Event Date:</strong> {formatDate(event.approximateDate)}
+                        <strong>{('isComplaint' in event && event.isComplaint) ? 'Complaint Date:' : 'Event Date:'}</strong> {formatDate(event.approximateDate)}
                       </span>
-                      <span className="text-xs px-2 py-1 bg-gray-100 rounded-full">
-                        {event.type}
+                      <span className={`text-xs px-2 py-1 rounded-full ${('isComplaint' in event && event.isComplaint) ? 'bg-orange-100 text-orange-800' : 'bg-gray-100'}`}>
+                        {('isComplaint' in event && event.isComplaint) ? 'Complaint' : event.type}
                       </span>
                     </div>
                     <h4 className="font-semibold mb-1">{event.title}</h4>
                     <p className="text-gray-600 text-sm mb-2">{event.description}</p>
+                    
+                    {/* Complaint Event Details */}
+                    {('isComplaint' in event && event.isComplaint) ? (
+                      <div className="mt-2 p-2 bg-orange-50 border border-orange-200 rounded text-sm">
+                        <div className="text-xs text-gray-500 space-y-1">
+                          <p><strong>Complained to:</strong> {(event as any).details?.complaintTo || 'Not specified'}</p>
+                          <p><strong>Incident Date:</strong> {(event as any).details?.incidentDate ? formatDate((event as any).details.incidentDate) : 'Not specified'}</p>
+                          <p><strong>Related Events:</strong> {(event as any).details?.relatedEventIds?.length || 0} incident(s)</p>
+                        </div>
+                      </div>
+                    ) : null}
                     
                     {/* Display complaint information if any */}
                     {event.didComplain && (

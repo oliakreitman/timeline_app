@@ -46,7 +46,6 @@ export interface Complaint {
   approximateDate: string;
   complaintTo: string; // Who they complained to
   complaintDate: string; // When they complained
-  status: 'pending' | 'investigated' | 'resolved' | 'dismissed';
   relatedEventIds: string[]; // IDs of events that are part of this complaint
   createdAt: string;
   updatedAt: string;

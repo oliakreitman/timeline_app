@@ -9,7 +9,10 @@ const CACHE_PREFIX = 'timeline_app_';
 const CACHE_DURATION = 60 * 60 * 1000; // 1 hour in milliseconds
 
 export class FormCache {
-  private static getCacheKey(key: string): string {
+  private static getCacheKey(key: string, userId?: string): string {
+    if (userId) {
+      return `${CACHE_PREFIX}${userId}_${key}`;
+    }
     return `${CACHE_PREFIX}${key}`;
   }
 
@@ -17,7 +20,7 @@ export class FormCache {
     return Date.now() > item.expiresAt;
   }
 
-  static set<T>(key: string, data: T): void {
+  static set<T>(key: string, data: T, userId?: string): void {
     try {
       const cacheItem: CacheItem<T> = {
         data,
@@ -26,7 +29,7 @@ export class FormCache {
       };
       
       localStorage.setItem(
-        this.getCacheKey(key), 
+        this.getCacheKey(key, userId), 
         JSON.stringify(cacheItem)
       );
     } catch (error) {
@@ -34,15 +37,15 @@ export class FormCache {
     }
   }
 
-  static get<T>(key: string): T | null {
+  static get<T>(key: string, userId?: string): T | null {
     try {
-      const cached = localStorage.getItem(this.getCacheKey(key));
+      const cached = localStorage.getItem(this.getCacheKey(key, userId));
       if (!cached) return null;
 
       const cacheItem: CacheItem<T> = JSON.parse(cached);
       
       if (this.isExpired(cacheItem)) {
-        this.remove(key);
+        this.remove(key, userId);
         return null;
       }
 
@@ -53,20 +56,28 @@ export class FormCache {
     }
   }
 
-  static remove(key: string): void {
+  static remove(key: string, userId?: string): void {
     try {
-      localStorage.removeItem(this.getCacheKey(key));
+      localStorage.removeItem(this.getCacheKey(key, userId));
     } catch (error) {
       console.warn('Failed to remove from cache:', error);
     }
   }
 
-  static clear(): void {
+  static clear(userId?: string): void {
     try {
       const keys = Object.keys(localStorage);
       keys.forEach(key => {
-        if (key.startsWith(CACHE_PREFIX)) {
-          localStorage.removeItem(key);
+        if (userId) {
+          // Clear only cache for specific user
+          if (key.startsWith(`${CACHE_PREFIX}${userId}_`)) {
+            localStorage.removeItem(key);
+          }
+        } else {
+          // Clear all cache
+          if (key.startsWith(CACHE_PREFIX)) {
+            localStorage.removeItem(key);
+          }
         }
       });
     } catch (error) {

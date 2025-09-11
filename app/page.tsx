@@ -69,17 +69,22 @@ export interface Complaint {
   approximateDate: string
   complaintTo: string
   complaintDate: string
-  status: 'pending' | 'investigated' | 'resolved' | 'dismissed'
   relatedEventIds: string[]
   createdAt: string
   updatedAt: string
 }
 
-const steps = [
+interface Step {
+  id: number
+  title: string
+  description?: string
+}
+
+const steps: Step[] = [
   { id: 1, title: "Contact Information", description: "Your personal details" },
   { id: 2, title: "Employer Information", description: "Workplace details" },
   { id: 3, title: "Timeline Events", description: "Add workplace incidents" },
-  { id: 4, title: "Review & Submit", description: "Confirm your timeline" },
+  { id: 4, title: "Review & Submit" },
 ]
 
 export default function IntakeForm() {
@@ -157,42 +162,42 @@ export default function IntakeForm() {
   // Auto-save form data to cache
   useEffect(() => {
     if (user) {
-      FormCache.set(CACHE_KEYS.CONTACT_INFO, contactInfo);
+      FormCache.set(CACHE_KEYS.CONTACT_INFO, contactInfo, user.uid);
     }
   }, [contactInfo, user]);
 
   useEffect(() => {
     if (user) {
-      FormCache.set(CACHE_KEYS.EMPLOYER_INFO, employerInfo);
+      FormCache.set(CACHE_KEYS.EMPLOYER_INFO, employerInfo, user.uid);
     }
   }, [employerInfo, user]);
 
   useEffect(() => {
     if (user) {
-      FormCache.set(CACHE_KEYS.EVENTS, events);
+      FormCache.set(CACHE_KEYS.EVENTS, events, user.uid);
     }
   }, [events, user]);
 
   useEffect(() => {
     if (user) {
-      FormCache.set(CACHE_KEYS.COMPLAINTS, complaints);
+      FormCache.set(CACHE_KEYS.COMPLAINTS, complaints, user.uid);
     }
   }, [complaints, user]);
 
   useEffect(() => {
     if (user) {
-      FormCache.set(CACHE_KEYS.CURRENT_STEP, currentStep);
+      FormCache.set(CACHE_KEYS.CURRENT_STEP, currentStep, user.uid);
     }
   }, [currentStep, user]);
 
   // Load cached data on component mount
   useEffect(() => {
     if (user && !existingSubmission) {
-      const cachedContactInfo = FormCache.get<ContactInfo>(CACHE_KEYS.CONTACT_INFO);
-      const cachedEmployerInfo = FormCache.get<EmployerInfo>(CACHE_KEYS.EMPLOYER_INFO);
-      const cachedEvents = FormCache.get<TimelineEvent[]>(CACHE_KEYS.EVENTS);
-      const cachedComplaints = FormCache.get<Complaint[]>(CACHE_KEYS.COMPLAINTS);
-      const cachedStep = FormCache.get<number>(CACHE_KEYS.CURRENT_STEP);
+      const cachedContactInfo = FormCache.get<ContactInfo>(CACHE_KEYS.CONTACT_INFO, user.uid);
+      const cachedEmployerInfo = FormCache.get<EmployerInfo>(CACHE_KEYS.EMPLOYER_INFO, user.uid);
+      const cachedEvents = FormCache.get<TimelineEvent[]>(CACHE_KEYS.EVENTS, user.uid);
+      const cachedComplaints = FormCache.get<Complaint[]>(CACHE_KEYS.COMPLAINTS, user.uid);
+      const cachedStep = FormCache.get<number>(CACHE_KEYS.CURRENT_STEP, user.uid);
 
       if (cachedContactInfo) {
         setContactInfo(cachedContactInfo);
@@ -216,6 +221,8 @@ export default function IntakeForm() {
   useEffect(() => {
     if (!user) {
       setShowAuthDemo(true);
+      // Clear any cached data when user signs out
+      FormCache.clear();
     } else {
       setShowAuthDemo(false);
     }
@@ -298,7 +305,7 @@ export default function IntakeForm() {
       }
 
       // Clear cache after successful submission
-      FormCache.clear();
+      FormCache.clear(user.uid);
       
       // Show success modal
       setSuccessMessage(existingSubmission ? "Timeline updated successfully! You can review or change it under \"Account\" page" : "Timeline submitted successfully! You can review or change it under \"Account\" page");
@@ -402,7 +409,9 @@ export default function IntakeForm() {
         <Card>
           <CardHeader>
             <CardTitle className="text-xl">{steps[currentStep - 1].title}</CardTitle>
-            <p className="text-gray-600">{steps[currentStep - 1].description}</p>
+            {steps[currentStep - 1].description && (
+              <p className="text-gray-600">{steps[currentStep - 1].description}</p>
+            )}
           </CardHeader>
           <CardContent>
             {currentStep === 1 && <ContactForm contactInfo={contactInfo} setContactInfo={setContactInfo} />}

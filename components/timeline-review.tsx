@@ -16,6 +16,26 @@ export function TimelineReview({ contactInfo, employerInfo, events, setEvents, c
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
   const [draggedOver, setDraggedOver] = useState<number | null>(null)
   const [isChronological, setIsChronological] = useState(true)
+
+  // Convert complaints to timeline events
+  const complaintEvents = complaints.map(complaint => ({
+    id: `complaint_${complaint.id}`,
+    type: "Complaint",
+    title: complaint.title,
+    description: complaint.description,
+    approximateDate: complaint.complaintDate, // Use complaint date for chronological sorting
+    details: {
+      complaintTo: complaint.complaintTo,
+      incidentDate: complaint.approximateDate,
+      relatedEventIds: complaint.relatedEventIds
+    },
+    attachments: [],
+    isComplaint: true,
+    complaintId: complaint.id
+  }))
+
+  // Merge events and complaint events
+  const allEvents: (TimelineEvent | typeof complaintEvents[0])[] = [...events, ...complaintEvents]
   
   // Helper function to format dates - handles both exact dates and approximate text
   const formatEventDate = (dateString: string) => {
@@ -118,14 +138,15 @@ export function TimelineReview({ contactInfo, employerInfo, events, setEvents, c
 
   // Sort events based on mode
   const displayEvents = isChronological 
-    ? [...events].sort((a, b) => 
+    ? [...allEvents].sort((a, b) => 
         parseApproximateDate(a.approximateDate).getTime() - parseApproximateDate(b.approximateDate).getTime()
       )
-    : [...events]
+    : [...allEvents]
 
   const toggleSortMode = () => {
     if (isChronological) {
       // When switching to custom mode, update the events array to match the chronological order
+      // Only update regular events, not complaint events (they're read-only)
       const sortedEvents = [...events].sort((a, b) => 
         parseApproximateDate(a.approximateDate).getTime() - parseApproximateDate(b.approximateDate).getTime()
       )
@@ -280,37 +301,6 @@ export function TimelineReview({ contactInfo, employerInfo, events, setEvents, c
         </CardContent>
       </Card>
 
-      {/* Complaints Section */}
-      {complaints.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              Complaints ({complaints.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {complaints.map((complaint) => (
-                <div key={complaint.id} className="border-l-4 border-orange-500 pl-4 py-2">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-sm font-medium text-orange-600">
-                      <strong>Incident Date:</strong> {formatEventDate(complaint.approximateDate)}
-                    </span>
-                  </div>
-                  <h4 className="font-semibold mb-1">{complaint.title}</h4>
-                  <p className="text-gray-600 text-sm mb-2">{complaint.description}</p>
-                  <div className="text-xs text-gray-500 space-y-1">
-                    <p><strong>Complained to:</strong> {complaint.complaintTo}</p>
-                    <p><strong>Complaint Date:</strong> {formatEventDate(complaint.complaintDate)}</p>
-                    <p><strong>Related Events:</strong> {complaint.relatedEventIds.length} incident(s)</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Timeline Events */}
       <Card>
@@ -318,9 +308,9 @@ export function TimelineReview({ contactInfo, employerInfo, events, setEvents, c
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2">
               <CalendarDays className="h-5 w-5" />
-              Timeline Events ({events.length})
+              Timeline Events ({allEvents.length})
             </CardTitle>
-            {events.length > 1 && (
+            {allEvents.length > 1 && (
               <Button
                 variant="outline"
                 size="sm"
@@ -341,7 +331,7 @@ export function TimelineReview({ contactInfo, employerInfo, events, setEvents, c
               </Button>
             )}
           </div>
-          {events.length > 1 && (
+          {allEvents.length > 1 && (
             <p className="text-sm text-muted-foreground">
               {isChronological 
                 ? "Events are sorted chronologically. Click 'Custom Order' to manually arrange them."
@@ -351,7 +341,7 @@ export function TimelineReview({ contactInfo, employerInfo, events, setEvents, c
           )}
         </CardHeader>
         <CardContent>
-          {events.length === 0 ? (
+          {allEvents.length === 0 ? (
             <p className="text-center text-muted-foreground py-4">
               No events have been added to your timeline.
             </p>
@@ -360,14 +350,14 @@ export function TimelineReview({ contactInfo, employerInfo, events, setEvents, c
               {displayEvents.map((event, index) => (
                 <div
                   key={event.id}
-                  draggable={events.length > 1 && !isChronological}
+                  draggable={events.length > 1 && !isChronological && !('isComplaint' in event && event.isComplaint)}
                   onDragStart={(e) => handleDragStart(e, index)}
                   onDragOver={(e) => handleDragOver(e, index)}
                   onDragLeave={handleDragLeave}
                   onDrop={(e) => handleDrop(e, index)}
                   onDragEnd={handleDragEnd}
-                  className={`border-l-2 border-blue-200 pl-4 pb-4 relative transition-all duration-200 ${
-                    events.length > 1 && !isChronological ? 'cursor-move hover:bg-gray-50' : ''
+                  className={`border-l-2 ${('isComplaint' in event && event.isComplaint) ? 'border-orange-200' : 'border-blue-200'} pl-4 pb-4 relative transition-all duration-200 ${
+                    events.length > 1 && !isChronological && !('isComplaint' in event && event.isComplaint) ? 'cursor-move hover:bg-gray-50' : ''
                   } ${
                     draggedOver === index && draggedIndex !== index && !isChronological
                       ? 'bg-blue-50 border-l-blue-400' 
@@ -376,26 +366,37 @@ export function TimelineReview({ contactInfo, employerInfo, events, setEvents, c
                     draggedIndex === index ? 'opacity-50' : ''
                   }`}
                 >
-                  <div className="absolute -left-2 top-0 w-4 h-4 bg-blue-600 rounded-full"></div>
+                  <div className={`absolute -left-2 top-0 w-4 h-4 ${('isComplaint' in event && event.isComplaint) ? 'bg-orange-600' : 'bg-blue-600'} rounded-full`}></div>
                   <div className="flex items-start gap-3">
-                    {events.length > 1 && !isChronological && (
+                    {events.length > 1 && !isChronological && !('isComplaint' in event && event.isComplaint) && (
                       <GripVertical className="h-4 w-4 mt-1 text-muted-foreground hover:text-blue-600 cursor-grab active:cursor-grabbing" />
                     )}
                     <FileText className="h-4 w-4 mt-1 text-muted-foreground" />
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">
-                          {eventTypes.find(t => t.value === event.type)?.label || event.type}
+                        <span className={`text-xs px-2 py-1 rounded ${('isComplaint' in event && event.isComplaint) ? 'bg-orange-100 text-orange-800' : 'bg-blue-100 text-blue-800'}`}>
+                          {('isComplaint' in event && event.isComplaint) ? 'Complaint' : (eventTypes.find(t => t.value === event.type)?.label || event.type)}
                         </span>
                         <span className="text-sm text-muted-foreground">
-                          <strong>Event Date:</strong> {formatEventDate(event.approximateDate)}
+                          <strong>{('isComplaint' in event && event.isComplaint) ? 'Complaint Date:' : 'Event Date:'}</strong> {formatEventDate(event.approximateDate)}
                         </span>
                       </div>
                       <h4 className="font-semibold mb-1">{event.title}</h4>
                       <p className="text-sm text-muted-foreground">{event.description}</p>
                       
+                      {/* Complaint Event Details */}
+                      {('isComplaint' in event && event.isComplaint) && (
+                        <div className="mt-2 p-2 bg-orange-50 border border-orange-200 rounded text-sm">
+                          <div className="text-xs text-gray-500 space-y-1">
+                            <p><strong>Complained to:</strong> {event.details.complaintTo}</p>
+                            <p><strong>Incident Date:</strong> {formatEventDate(event.details.incidentDate)}</p>
+                            <p><strong>Related Events:</strong> {event.details.relatedEventIds.length} incident(s)</p>
+                          </div>
+                        </div>
+                      )}
+                      
                       {/* Complaint Information */}
-                      {event.didComplain && (
+                      {('didComplain' in event && event.didComplain) && (
                         <div className="mt-2 p-2 bg-orange-50 border border-orange-200 rounded text-sm">
                           <div className="flex items-center gap-2 mb-1">
                             <span className="text-orange-600 font-medium">📢 Complaint Filed</span>
@@ -417,8 +418,8 @@ export function TimelineReview({ contactInfo, employerInfo, events, setEvents, c
                             // Fallback to event's own complaint data if no linked complaint found
                             return (
                               <>
-                                <p><strong>Complained to:</strong> {event.complaintTo || 'Not specified'}</p>
-                                <p><strong>Date:</strong> {event.complaintDate ? formatEventDate(event.complaintDate) : 'Not specified'}</p>
+                                <p><strong>Complained to:</strong> {('complaintTo' in event ? event.complaintTo : 'Not specified') || 'Not specified'}</p>
+                                <p><strong>When Complained:</strong> {('complaintDate' in event && event.complaintDate) ? formatEventDate(event.complaintDate) : 'Not specified'}</p>
                               </>
                             );
                           })()}
