@@ -38,8 +38,31 @@ export const TimelineDisplay: React.FC<TimelineDisplayProps> = ({ timeline, onEd
     complaintId: complaint.id
   })) || []
 
-  // Merge events and complaint events
-  const allEvents: (typeof timeline.events[0] | typeof complaintEvents[0])[] = [...timeline.events, ...complaintEvents];
+  // Convert company responses to timeline events
+  const companyResponseEvents = timeline.events
+    .filter(event => event.companyDidRespond && event.companyResponseDate)
+    .map(event => ({
+      id: `company_response_${event.id}`,
+      type: "Company Response",
+      title: `Company Response to ${event.title}`,
+      description: event.companyResponseDetails || "Company responded to the complaint",
+      approximateDate: event.companyResponseDate!,
+      details: {
+        originalEventId: event.id,
+        originalEventTitle: event.title,
+        responseDetails: event.companyResponseDetails
+      },
+      attachments: [],
+      isCompanyResponse: true,
+      originalEventId: event.id
+    }))
+
+  // Merge events, complaint events, and company response events
+  const allEvents: (typeof timeline.events[0] | typeof complaintEvents[0] | typeof companyResponseEvents[0])[] = [
+    ...timeline.events, 
+    ...complaintEvents, 
+    ...companyResponseEvents
+  ];
 
   const formatEmployerDate = (dateString: string) => {
     // Try to parse as a date, if it fails, return the original string
@@ -159,13 +182,27 @@ export const TimelineDisplay: React.FC<TimelineDisplayProps> = ({ timeline, onEd
             <div className="space-y-4">
               {sortEventsByDate(allEvents)
                 .map((event, index) => (
-                  <div key={event.id} className={`border-l-2 ${('isComplaint' in event && event.isComplaint) ? 'border-orange-500' : 'border-blue-500'} pl-4 pb-4`}>
+                  <div key={event.id} className={`border-l-2 ${
+                    ('isComplaint' in event && event.isComplaint) ? 'border-orange-500' : 
+                    ('isCompanyResponse' in event && event.isCompanyResponse) ? 'border-green-500' : 
+                    'border-blue-500'
+                  } pl-4 pb-4`}>
                     <div className="flex items-center gap-2 mb-2">
                       <span className="text-sm font-medium text-blue-600">
-                        <strong>{('isComplaint' in event && event.isComplaint) ? 'Complaint Date:' : 'Event Date:'}</strong> {formatDate(event.approximateDate)}
+                        <strong>{
+                          ('isComplaint' in event && event.isComplaint) ? 'Complaint Date:' : 
+                          ('isCompanyResponse' in event && event.isCompanyResponse) ? 'Response Date:' : 
+                          'Event Date:'
+                        }</strong> {formatDate(event.approximateDate)}
                       </span>
-                      <span className={`text-xs px-2 py-1 rounded-full ${('isComplaint' in event && event.isComplaint) ? 'bg-orange-100 text-orange-800' : 'bg-gray-100'}`}>
-                        {('isComplaint' in event && event.isComplaint) ? 'Complaint' : event.type}
+                      <span className={`text-xs px-2 py-1 rounded-full ${
+                        ('isComplaint' in event && event.isComplaint) ? 'bg-orange-100 text-orange-800' : 
+                        ('isCompanyResponse' in event && event.isCompanyResponse) ? 'bg-green-100 text-green-800' : 
+                        'bg-gray-100'
+                      }`}>
+                        {('isComplaint' in event && event.isComplaint) ? 'Complaint' : 
+                         ('isCompanyResponse' in event && event.isCompanyResponse) ? 'Company Response' : 
+                         event.type}
                       </span>
                     </div>
                     <h4 className="font-semibold mb-1">{event.title}</h4>
@@ -178,6 +215,17 @@ export const TimelineDisplay: React.FC<TimelineDisplayProps> = ({ timeline, onEd
                           <p><strong>Complained to:</strong> {(event as any).details?.complaintTo || 'Not specified'}</p>
                           <p><strong>Incident Date:</strong> {(event as any).details?.incidentDate ? formatDate((event as any).details.incidentDate) : 'Not specified'}</p>
                           <p><strong>Related Events:</strong> {(event as any).details?.relatedEventIds?.length || 0} incident(s)</p>
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {/* Company Response Event Details */}
+                    {('isCompanyResponse' in event && event.isCompanyResponse) ? (
+                      <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-sm">
+                        <div className="text-xs text-gray-500 space-y-1">
+                          <p><strong>Response to:</strong> {(event as any).details?.originalEventTitle || 'Original incident'}</p>
+                          <p><strong>Response Details:</strong></p>
+                          <p className="text-gray-700 italic pl-2">{(event as any).details?.responseDetails || 'No details provided'}</p>
                         </div>
                       </div>
                     ) : null}
@@ -210,6 +258,33 @@ export const TimelineDisplay: React.FC<TimelineDisplayProps> = ({ timeline, onEd
                             </>
                           );
                         })()}
+                      </div>
+                    )}
+
+                    {/* Display company response information if any */}
+                    {event.companyDidRespond !== undefined && (
+                      <div className={`mb-2 p-2 rounded text-sm ${
+                        event.companyDidRespond 
+                          ? 'bg-green-50 border border-green-200' 
+                          : 'bg-red-50 border border-red-200'
+                      }`}>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className={`font-medium ${
+                            event.companyDidRespond ? 'text-green-600' : 'text-red-600'
+                          }`}>
+                            🏢 Company Response
+                          </span>
+                        </div>
+                        <p><strong>Company Responded:</strong> {event.companyDidRespond ? 'Yes' : 'No'}</p>
+                        {event.companyDidRespond && event.companyResponseDate && (
+                          <p><strong>Response Date:</strong> {formatDate(event.companyResponseDate)}</p>
+                        )}
+                        {event.companyDidRespond && event.companyResponseDetails && (
+                          <div>
+                            <p><strong>What the company did:</strong></p>
+                            <p className="text-gray-700 italic pl-2">{event.companyResponseDetails}</p>
+                          </div>
+                        )}
                       </div>
                     )}
                     

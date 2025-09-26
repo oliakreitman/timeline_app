@@ -49,6 +49,13 @@ export function EventBuilder({ events, setEvents, complaints, setComplaints, use
     complaintDate: ""
   })
 
+  // Company response state
+  const [showCompanyResponseQuestion, setShowCompanyResponseQuestion] = useState(false)
+  const [companyDidRespond, setCompanyDidRespond] = useState<boolean | null>(null)
+  const [companyResponseDate, setCompanyResponseDate] = useState("")
+  const [useExactCompanyResponseDate, setUseExactCompanyResponseDate] = useState(true)
+  const [companyResponseDetails, setCompanyResponseDetails] = useState("")
+
   const eventTypes = [
     { value: "harassment", label: "Harassment/Discrimination" },
     { value: "wrongful-termination", label: "Wrongful Termination" },
@@ -148,6 +155,16 @@ export function EventBuilder({ events, setEvents, complaints, setComplaints, use
   };
 
   const handleAddEvent = async () => {
+    console.log("handleAddEvent called", {
+      type: currentEvent.type,
+      title: currentEvent.title,
+      description: currentEvent.description,
+      approximateDate: currentEvent.approximateDate,
+      companyDidRespond,
+      companyResponseDate,
+      companyResponseDetails
+    });
+    
     if (currentEvent.type && currentEvent.title && currentEvent.description && currentEvent.approximateDate) {
       try {
         // Upload files first if any
@@ -186,7 +203,10 @@ export function EventBuilder({ events, setEvents, complaints, setComplaints, use
           didComplain: currentEvent.didComplain || false,
           complaintTo: currentEvent.complaintTo || "",
           complaintDate: currentEvent.complaintDate || "",
-          complaintId: currentEvent.complaintId || ""
+          complaintId: currentEvent.complaintId || "",
+          companyDidRespond: companyDidRespond === true,
+          companyResponseDate: companyDidRespond === true ? companyResponseDate : "",
+          companyResponseDetails: companyDidRespond === true ? companyResponseDetails : ""
         }
 
         // Handle complaint creation if needed
@@ -225,6 +245,9 @@ export function EventBuilder({ events, setEvents, complaints, setComplaints, use
         console.error("Error adding event:", error);
         alert("Error adding event. Please try again.");
       }
+    } else {
+      console.log("Form validation failed - missing required fields");
+      alert("Please fill in all required fields: Event Type, Title, Description, and Date.");
     }
   }
 
@@ -258,7 +281,14 @@ export function EventBuilder({ events, setEvents, complaints, setComplaints, use
         
         const updatedEvents = events.map(event => 
           event.id === editingId 
-            ? { ...event, ...currentEvent, attachments: attachmentsWithUrls } as TimelineEvent
+            ? { 
+                ...event, 
+                ...currentEvent, 
+                attachments: attachmentsWithUrls,
+                companyDidRespond: companyDidRespond === true,
+                companyResponseDate: companyDidRespond === true ? companyResponseDate : "",
+                companyResponseDetails: companyDidRespond === true ? companyResponseDetails : ""
+              } as TimelineEvent
             : event
         )
         // Update events and maintain sorting
@@ -286,6 +316,22 @@ export function EventBuilder({ events, setEvents, complaints, setComplaints, use
     const parsedDate = new Date(event.approximateDate)
     const isExactDate = !isNaN(parsedDate.getTime()) && event.approximateDate.includes('-')
     setUseExactDate(isExactDate)
+    
+    // Set complaint tracking state
+    setShowComplaintQuestion(event.didComplain || false)
+    
+    // Set company response state
+    setCompanyDidRespond(event.companyDidRespond === true ? true : event.companyDidRespond === false ? false : null)
+    setShowCompanyResponseQuestion(event.companyDidRespond === true)
+    setCompanyResponseDate(event.companyResponseDate || "")
+    setCompanyResponseDetails(event.companyResponseDetails || "")
+    
+    // Determine if company response date is exact or approximate
+    if (event.companyResponseDate) {
+      const parsedCompanyDate = new Date(event.companyResponseDate)
+      const isExactCompanyDate = !isNaN(parsedCompanyDate.getTime()) && event.companyResponseDate.includes('-')
+      setUseExactCompanyResponseDate(isExactCompanyDate)
+    }
   }
 
   const resetForm = () => {
@@ -315,6 +361,11 @@ export function EventBuilder({ events, setEvents, complaints, setComplaints, use
       complaintTo: "",
       complaintDate: ""
     })
+    setShowCompanyResponseQuestion(false)
+    setCompanyDidRespond(null)
+    setCompanyResponseDate("")
+    setUseExactCompanyResponseDate(true)
+    setCompanyResponseDetails("")
   }
 
   return (
@@ -669,6 +720,129 @@ export function EventBuilder({ events, setEvents, complaints, setComplaints, use
                 )}
               </div>
             </div>
+
+            {/* Company Response Section */}
+            {currentEvent.didComplain && (
+              <div className="space-y-4 pt-6 border-t border-gray-200">
+                <div className="space-y-2">
+                  <Label className="text-base font-semibold">Company Response</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Did the company do anything about the incident?
+                  </p>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="flex gap-4">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="companyResponse"
+                        checked={companyDidRespond === true}
+                        onChange={() => {
+                          setCompanyDidRespond(true)
+                          setShowCompanyResponseQuestion(true)
+                        }}
+                        className="w-4 h-4 text-blue-600"
+                      />
+                      <span className="text-sm">Yes, the company responded</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="companyResponse"
+                        checked={companyDidRespond === false}
+                        onChange={() => {
+                          setCompanyDidRespond(false)
+                          setShowCompanyResponseQuestion(false)
+                          setCompanyResponseDate("")
+                          setCompanyResponseDetails("")
+                        }}
+                        className="w-4 h-4 text-blue-600"
+                      />
+                      <span className="text-sm">No, the company did not respond</span>
+                    </label>
+                  </div>
+
+                  {companyDidRespond && showCompanyResponseQuestion && (
+                    <div className="space-y-4 p-4 bg-gray-50 rounded-lg">
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label>When did the company respond? *</Label>
+                          <div className="flex gap-4">
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="radio"
+                                name="companyResponseDateType"
+                                checked={useExactCompanyResponseDate}
+                                onChange={() => {
+                                  setUseExactCompanyResponseDate(true)
+                                  setCompanyResponseDate("")
+                                }}
+                                className="w-4 h-4 text-blue-600"
+                              />
+                              <span className="text-sm">I know the exact date</span>
+                            </label>
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="radio"
+                                name="companyResponseDateType"
+                                checked={!useExactCompanyResponseDate}
+                                onChange={() => {
+                                  setUseExactCompanyResponseDate(false)
+                                  setCompanyResponseDate("")
+                                }}
+                                className="w-4 h-4 text-blue-600"
+                              />
+                              <span className="text-sm">I only remember approximately</span>
+                            </label>
+                          </div>
+                        </div>
+
+                        {useExactCompanyResponseDate ? (
+                          <div className="space-y-2">
+                            <Label htmlFor="companyResponseDate">Exact Response Date *</Label>
+                            <Input
+                              id="companyResponseDate"
+                              type="date"
+                              value={companyResponseDate}
+                              onChange={(e) => setCompanyResponseDate(e.target.value)}
+                              required={companyDidRespond === true}
+                            />
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            <Label htmlFor="companyResponseApproxDate">Approximate Response Date *</Label>
+                            <Input
+                              id="companyResponseApproxDate"
+                              type="text"
+                              value={companyResponseDate}
+                              onChange={(e) => setCompanyResponseDate(e.target.value)}
+                              placeholder="e.g., 'Summer 2023', 'Early March 2024', 'Around Christmas 2022'"
+                              required={companyDidRespond === true}
+                            />
+                            <p className="text-xs text-muted-foreground">
+                              Examples: "Summer 2023", "Early March 2024", "Around Christmas 2022", "Late 2023", "Beginning of this year"
+                            </p>
+                          </div>
+                        )}
+
+                        <div className="space-y-2">
+                          <Label htmlFor="companyResponseDetails">What exactly did the company do? *</Label>
+                          <Textarea
+                            id="companyResponseDetails"
+                            value={companyResponseDetails}
+                            onChange={(e) => setCompanyResponseDetails(e.target.value)}
+                            placeholder="Describe what the company did in response to your complaint..."
+                            className="min-h-[100px]"
+                            required={companyDidRespond === true}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             <div className="flex gap-2">
               <Button 

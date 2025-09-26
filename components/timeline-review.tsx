@@ -425,6 +425,37 @@ export function TimelineReview({ contactInfo, employerInfo, events, setEvents, c
                           })()}
                         </div>
                       )}
+
+                      {/* Company Response Information */}
+                      {('companyDidRespond' in event && event.companyDidRespond) && (
+                        <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-sm">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-green-600 font-medium">🏢 Company Response</span>
+                          </div>
+                          <div className="space-y-1">
+                            <p><strong>Company Responded:</strong> Yes</p>
+                            {event.companyResponseDate && (
+                              <p><strong>Response Date:</strong> {formatEventDate(event.companyResponseDate)}</p>
+                            )}
+                            {event.companyResponseDetails && (
+                              <div>
+                                <p><strong>What the company did:</strong></p>
+                                <p className="text-gray-700 italic pl-2">{event.companyResponseDetails}</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Company Did Not Respond */}
+                      {('companyDidRespond' in event && event.companyDidRespond === false) && (
+                        <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-sm">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-red-600 font-medium">🏢 Company Response</span>
+                          </div>
+                          <p><strong>Company Responded:</strong> No</p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

@@ -59,6 +59,9 @@ export interface TimelineEvent {
   didComplain?: boolean // Whether user complained about this incident
   complaintTo?: string // Who they complained to
   complaintDate?: string // When they complained
+  companyDidRespond?: boolean // Whether company responded to the complaint
+  companyResponseDate?: string // When company responded
+  companyResponseDetails?: string // What company did in response
 }
 
 export interface Complaint {

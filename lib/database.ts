@@ -30,10 +30,25 @@ export interface UserProfile {
 export interface TimelineEvent {
   id?: string;
   userId: string;
+  type: string;
   title: string;
   description: string;
-  date: string;
-  category: string;
+  approximateDate: string;
+  details: Record<string, any>;
+  attachments?: Array<{
+    id: string;
+    name: string;
+    type: string;
+    size: number;
+    url?: string;
+  }>;
+  complaintId?: string; // Link to complaint if this event was part of a complaint
+  didComplain?: boolean; // Whether user complained about this incident
+  complaintTo?: string; // Who they complained to
+  complaintDate?: string; // When they complained
+  companyDidRespond?: boolean; // Whether company responded to the complaint
+  companyResponseDate?: string; // When company responded
+  companyResponseDetails?: string; // What company did in response
   createdAt: string;
   updatedAt: string;
 }
@@ -97,6 +112,9 @@ export interface TimelineSubmission {
     didComplain?: boolean;
     complaintTo?: string;
     complaintDate?: string;
+    companyDidRespond?: boolean;
+    companyResponseDate?: string;
+    companyResponseDetails?: string;
   }>;
   complaints?: Complaint[];
   submittedAt: string;
