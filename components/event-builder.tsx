@@ -676,10 +676,18 @@ export function EventBuilder({ events, setEvents, complaints, setComplaints, use
                             id="complaintDescription"
                             value={newComplaint.description || ""}
                             onChange={(e) => setNewComplaint({ ...newComplaint, description: e.target.value })}
-                            placeholder="Describe what you complained about..."
-                            className="min-h-[80px]"
+                            placeholder="Describe what you complained about"
+                            className="min-h-[120px]"
                             required
                           />
+                          <p className="text-xs text-muted-foreground">
+                            <strong>Please include:</strong>
+                            <br />• What you complained about specifically
+                            <br />• How you complained (phone call, email, in-person, text, etc.)
+                            <br />• Who you spoke with or contacted
+                            <br />• Whether you have copies of emails, messages, meeting notes, or other documentation
+                            <br />• Any responses or reactions you received
+                          </p>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div className="space-y-2">
@@ -832,10 +840,17 @@ export function EventBuilder({ events, setEvents, complaints, setComplaints, use
                             id="companyResponseDetails"
                             value={companyResponseDetails}
                             onChange={(e) => setCompanyResponseDetails(e.target.value)}
-                            placeholder="Describe what the company did in response to your complaint..."
-                            className="min-h-[100px]"
+                            placeholder="Describe what the company did in response to your complaint"
+                            className="min-h-[120px]"
                             required={companyDidRespond === true}
                           />
+                          <p className="text-xs text-muted-foreground">
+                            <strong>Please include:</strong>
+                            <br />• What the company did specifically in response to your complaint
+                            <br />• Who took action regarding your report (name, job title, department)
+                            <br />• How you found out about the action taken (phone call, email, in-person meeting, etc.)
+                            <br />• Any documentation you have (emails, messages, meeting notes, etc.)
+                          </p>
                         </div>
                       </div>
                     </div>
