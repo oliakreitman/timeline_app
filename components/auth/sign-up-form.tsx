@@ -177,7 +177,6 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({ onSignUpSuccess }) => {
             required
             minLength={6}
           />
-          <p className="text-xs text-muted-foreground mt-1">Password must be at least 6 characters</p>
         </div>
 
         <div>
