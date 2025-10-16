@@ -53,7 +53,6 @@ export function EmployerForm({ employerInfo, setEmployerInfo }: EmployerFormProp
           value={safeEmployerInfo.companyName}
           onChange={(e) => handleChange("companyName", e.target.value)}
           placeholder="Enter company name"
-          required
         />
       </div>
 
@@ -64,7 +63,6 @@ export function EmployerForm({ employerInfo, setEmployerInfo }: EmployerFormProp
           value={safeEmployerInfo.location}
           onChange={(e) => handleChange("location", e.target.value)}
           placeholder="Enter company location (city, state)"
-          required
         />
       </div>
 
@@ -75,7 +73,6 @@ export function EmployerForm({ employerInfo, setEmployerInfo }: EmployerFormProp
           value={safeEmployerInfo.jobTitle}
           onChange={(e) => handleChange("jobTitle", e.target.value)}
           placeholder="Enter your job title"
-          required
         />
       </div>
 
@@ -93,9 +90,9 @@ export function EmployerForm({ employerInfo, setEmployerInfo }: EmployerFormProp
                   setUseExactStartDate(true)
                   handleChange("startDate", "")
                 }}
-                className="w-4 h-4 text-blue-600"
+                className="w-4 h-4 text-primary accent-primary"
               />
-              <span className="text-sm">I know the exact date</span>
+              <span className="text-sm text-foreground">I know the exact date</span>
             </label>
             <label className="flex items-center gap-2 cursor-pointer">
               <input
@@ -106,9 +103,9 @@ export function EmployerForm({ employerInfo, setEmployerInfo }: EmployerFormProp
                   setUseExactStartDate(false)
                   handleChange("startDate", "")
                 }}
-                className="w-4 h-4 text-blue-600"
+                className="w-4 h-4 text-primary accent-primary"
               />
-              <span className="text-sm">I only remember approximately</span>
+              <span className="text-sm text-foreground">I only remember approximately</span>
             </label>
           </div>
         </div>
@@ -121,7 +118,6 @@ export function EmployerForm({ employerInfo, setEmployerInfo }: EmployerFormProp
               type="date"
               value={safeEmployerInfo.startDate}
               onChange={(e) => handleChange("startDate", e.target.value)}
-              required
             />
           </div>
         ) : (
@@ -133,7 +129,6 @@ export function EmployerForm({ employerInfo, setEmployerInfo }: EmployerFormProp
               value={safeEmployerInfo.startDate}
               onChange={(e) => handleChange("startDate", e.target.value)}
               placeholder="e.g., 'Summer 2023', 'Early March 2024', 'Around Christmas 2022'"
-              required
             />
             <p className="text-xs text-muted-foreground">
               Examples: "Summer 2023", "Early March 2024", "Around Christmas 2022", "Late 2023", "Beginning of this year"
@@ -156,9 +151,9 @@ export function EmployerForm({ employerInfo, setEmployerInfo }: EmployerFormProp
                   setUseExactEndDate(true)
                   handleChange("endDate", "")
                 }}
-                className="w-4 h-4 text-blue-600"
+                className="w-4 h-4 text-primary accent-primary"
               />
-              <span className="text-sm">I know the exact date</span>
+              <span className="text-sm text-foreground">I know the exact date</span>
             </label>
             <label className="flex items-center gap-2 cursor-pointer">
               <input
@@ -169,9 +164,9 @@ export function EmployerForm({ employerInfo, setEmployerInfo }: EmployerFormProp
                   setUseExactEndDate(false)
                   handleChange("endDate", "")
                 }}
-                className="w-4 h-4 text-blue-600"
+                className="w-4 h-4 text-primary accent-primary"
               />
-              <span className="text-sm">I only remember approximately</span>
+              <span className="text-sm text-foreground">I only remember approximately</span>
             </label>
           </div>
         </div>
@@ -220,7 +215,6 @@ export function EmployerForm({ employerInfo, setEmployerInfo }: EmployerFormProp
             id="employmentType"
             value={safeEmployerInfo.employmentType}
             onChange={(e) => handleChange("employmentType", e.target.value)}
-            required
           >
             <option value="">Select employment type</option>
             <option value="full-time">Full-time</option>

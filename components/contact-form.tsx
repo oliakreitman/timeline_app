@@ -12,6 +12,26 @@ export function ContactForm({ contactInfo, setContactInfo }: ContactFormProps) {
     setContactInfo({ ...contactInfo, [field]: value })
   }
 
+  // Format phone number as user types
+  const formatPhoneNumber = (value: string) => {
+    // Remove all non-digit characters
+    const phoneNumber = value.replace(/\D/g, '')
+    
+    // Format as (XXX) XXX-XXXX
+    if (phoneNumber.length <= 3) {
+      return phoneNumber
+    } else if (phoneNumber.length <= 6) {
+      return `(${phoneNumber.slice(0, 3)}) ${phoneNumber.slice(3)}`
+    } else {
+      return `(${phoneNumber.slice(0, 3)}) ${phoneNumber.slice(3, 6)}-${phoneNumber.slice(6, 10)}`
+    }
+  }
+
+  const handlePhoneChange = (field: keyof ContactInfo, value: string) => {
+    const formatted = formatPhoneNumber(value)
+    setContactInfo({ ...contactInfo, [field]: formatted })
+  }
+
   // Ensure all values are defined to prevent controlled/uncontrolled input errors
   const safeContactInfo = {
     firstName: contactInfo.firstName || "",
@@ -34,7 +54,6 @@ export function ContactForm({ contactInfo, setContactInfo }: ContactFormProps) {
             value={safeContactInfo.firstName}
             onChange={(e) => handleChange("firstName", e.target.value)}
             placeholder="Enter your first name"
-            required
           />
         </div>
         <div className="space-y-2">
@@ -44,7 +63,6 @@ export function ContactForm({ contactInfo, setContactInfo }: ContactFormProps) {
             value={safeContactInfo.lastName}
             onChange={(e) => handleChange("lastName", e.target.value)}
             placeholder="Enter your last name"
-            required
           />
         </div>
       </div>
@@ -57,7 +75,6 @@ export function ContactForm({ contactInfo, setContactInfo }: ContactFormProps) {
           value={safeContactInfo.email}
           onChange={(e) => handleChange("email", e.target.value)}
           placeholder="Enter your email address"
-          required
         />
       </div>
 
@@ -67,10 +84,11 @@ export function ContactForm({ contactInfo, setContactInfo }: ContactFormProps) {
           id="phone"
           type="tel"
           value={safeContactInfo.phone}
-          onChange={(e) => handleChange("phone", e.target.value)}
-          placeholder="Enter your phone number"
-          required
+          onChange={(e) => handlePhoneChange("phone", e.target.value)}
+          placeholder="(555) 123-4567"
+          maxLength={14}
         />
+        <p className="text-xs text-muted-foreground">Format: (555) 123-4567</p>
       </div>
 
       <div className="space-y-2">
@@ -80,7 +98,6 @@ export function ContactForm({ contactInfo, setContactInfo }: ContactFormProps) {
           value={safeContactInfo.address}
           onChange={(e) => handleChange("address", e.target.value)}
           placeholder="Enter your full address"
-          required
         />
       </div>
 
@@ -91,7 +108,6 @@ export function ContactForm({ contactInfo, setContactInfo }: ContactFormProps) {
           type="date"
           value={safeContactInfo.birthday}
           onChange={(e) => handleChange("birthday", e.target.value)}
-          required
         />
       </div>
 
@@ -104,7 +120,6 @@ export function ContactForm({ contactInfo, setContactInfo }: ContactFormProps) {
               value={safeContactInfo.emergencyContactName}
               onChange={(e) => handleChange("emergencyContactName", e.target.value)}
               placeholder="Enter emergency contact's full name"
-              required
             />
           </div>
           <div className="space-y-2">
@@ -113,10 +128,11 @@ export function ContactForm({ contactInfo, setContactInfo }: ContactFormProps) {
               id="emergencyContactPhone"
               type="tel"
               value={safeContactInfo.emergencyContactPhone}
-              onChange={(e) => handleChange("emergencyContactPhone", e.target.value)}
-              placeholder="Enter emergency contact's phone number"
-              required
+              onChange={(e) => handlePhoneChange("emergencyContactPhone", e.target.value)}
+              placeholder="(555) 123-4567"
+              maxLength={14}
             />
+            <p className="text-xs text-muted-foreground">Format: (555) 123-4567</p>
           </div>
         </div>
       </div>

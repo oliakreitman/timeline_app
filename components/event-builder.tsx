@@ -436,9 +436,9 @@ export function EventBuilder({ events, setEvents, complaints, setComplaints, use
                         setUseExactDate(true)
                         setCurrentEvent({ ...currentEvent, approximateDate: "" })
                       }}
-                      className="w-4 h-4 text-blue-600"
+                      className="w-4 h-4 text-primary accent-primary"
                     />
-                    <span className="text-sm">I know the exact date</span>
+                    <span className="text-sm text-foreground">I know the exact date</span>
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
@@ -449,9 +449,9 @@ export function EventBuilder({ events, setEvents, complaints, setComplaints, use
                         setUseExactDate(false)
                         setCurrentEvent({ ...currentEvent, approximateDate: "" })
                       }}
-                      className="w-4 h-4 text-blue-600"
+                      className="w-4 h-4 text-primary accent-primary"
                     />
-                    <span className="text-sm">I only remember approximately</span>
+                    <span className="text-sm text-foreground">I only remember approximately</span>
                   </label>
                 </div>
               </div>
@@ -488,7 +488,7 @@ export function EventBuilder({ events, setEvents, complaints, setComplaints, use
             {/* File Attachments */}
             <div className="space-y-2">
               <Label>Evidence Attachments</Label>
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
+              <div className="border-2 border-dashed border-border rounded-lg p-4 text-center">
                 <input
                   type="file"
                   id="file-upload"
@@ -499,18 +499,18 @@ export function EventBuilder({ events, setEvents, complaints, setComplaints, use
                 />
                 <label htmlFor="file-upload" className="cursor-pointer">
                   <div className="space-y-2">
-                    <div className="text-gray-600">
-                      <svg className="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                    <div className="text-muted-foreground">
+                      <svg className="mx-auto h-12 w-12 text-muted-foreground" stroke="currentColor" fill="none" viewBox="0 0 48 48">
                         <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
                     </div>
-                    <div className="text-sm text-gray-600">
-                      <span className="font-medium text-blue-600 hover:text-blue-500">
+                    <div className="text-sm text-muted-foreground">
+                      <span className="font-medium text-primary hover:text-primary/90">
                         Click to upload
                       </span>{" "}
                       or drag and drop
                     </div>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-muted-foreground">
                       Images (JPG, PNG, GIF), PDFs, and text documents (DOC, DOCX, TXT) up to 10MB each
                     </p>
                   </div>
@@ -523,17 +523,17 @@ export function EventBuilder({ events, setEvents, complaints, setComplaints, use
                   <Label className="text-sm font-medium">Uploaded Files:</Label>
                   <div className="space-y-2">
                     {currentEvent.attachments.map((file) => (
-                      <div key={file.id} className="flex items-center justify-between p-2 bg-gray-50 rounded border">
+                      <div key={file.id} className="flex items-center justify-between p-2 bg-muted rounded border border-border">
                         <div className="flex items-center space-x-2">
-                          <span className="text-sm font-medium">{file.name}</span>
-                          <span className="text-xs text-gray-500">({formatFileSize(file.size)})</span>
+                          <span className="text-sm font-medium text-foreground">{file.name}</span>
+                          <span className="text-xs text-muted-foreground">({formatFileSize(file.size)})</span>
                         </div>
                         <Button
                           type="button"
                           variant="outline"
                           size="sm"
                           onClick={() => removeAttachment(file.id)}
-                          className="text-red-600 hover:text-red-700"
+                          className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
                         >
                           Remove
                         </Button>
@@ -545,7 +545,7 @@ export function EventBuilder({ events, setEvents, complaints, setComplaints, use
             </div>
 
             {/* Complaint Tracking Section */}
-            <div className="space-y-4 pt-6 border-t border-gray-200">
+            <div className="space-y-4 pt-6 border-t border-border">
               <div className="space-y-2">
                 <Label className="text-base font-semibold">Complaint Tracking</Label>
                 <p className="text-sm text-muted-foreground">
@@ -564,9 +564,9 @@ export function EventBuilder({ events, setEvents, complaints, setComplaints, use
                         setCurrentEvent({ ...currentEvent, didComplain: true })
                         setShowComplaintQuestion(true)
                       }}
-                      className="w-4 h-4 text-blue-600"
+                      className="w-4 h-4 text-primary accent-primary"
                     />
-                    <span className="text-sm">Yes, I complained about this</span>
+                    <span className="text-sm text-foreground">Yes, I complained about this</span>
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
@@ -577,14 +577,14 @@ export function EventBuilder({ events, setEvents, complaints, setComplaints, use
                         setCurrentEvent({ ...currentEvent, didComplain: false, complaintTo: "", complaintDate: "", complaintId: "" })
                         setShowComplaintQuestion(false)
                       }}
-                      className="w-4 h-4 text-blue-600"
+                      className="w-4 h-4 text-primary accent-primary"
                     />
-                    <span className="text-sm">No, I did not complain</span>
+                    <span className="text-sm text-foreground">No, I did not complain</span>
                   </label>
                 </div>
 
                 {currentEvent.didComplain && showComplaintQuestion && (
-                  <div className="space-y-4 p-4 bg-gray-50 rounded-lg">
+                  <div className="space-y-4 p-4 bg-muted rounded-lg">
                     <div className="space-y-2">
                       <Label>Is this complaint part of an existing complaint?</Label>
                       <div className="flex gap-4">
@@ -597,9 +597,9 @@ export function EventBuilder({ events, setEvents, complaints, setComplaints, use
                               setIsCreatingNewComplaint(false)
                               setSelectedComplaintId("")
                             }}
-                            className="w-4 h-4 text-blue-600"
+                            className="w-4 h-4 text-primary accent-primary"
                           />
-                          <span className="text-sm">Yes, add to existing complaint</span>
+                          <span className="text-sm text-foreground">Yes, add to existing complaint</span>
                         </label>
                         <label className="flex items-center gap-2 cursor-pointer">
                           <input
@@ -610,9 +610,9 @@ export function EventBuilder({ events, setEvents, complaints, setComplaints, use
                               setIsCreatingNewComplaint(true)
                               setSelectedComplaintId("")
                             }}
-                            className="w-4 h-4 text-blue-600"
+                            className="w-4 h-4 text-primary accent-primary"
                           />
-                          <span className="text-sm">No, create new complaint</span>
+                          <span className="text-sm text-foreground">No, create new complaint</span>
                         </label>
                       </div>
                     </div>
@@ -647,12 +647,12 @@ export function EventBuilder({ events, setEvents, complaints, setComplaints, use
                     )}
 
                     {!isCreatingNewComplaint && complaints.length === 0 && (
-                      <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                      <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
                         <div className="flex items-center gap-2 mb-2">
-                          <span className="text-yellow-600">⚠️</span>
-                          <span className="text-sm font-medium text-yellow-800">No Existing Complaints</span>
+                          <span className="text-yellow-600 dark:text-yellow-400">⚠️</span>
+                          <span className="text-sm font-medium text-yellow-800 dark:text-yellow-300">No Existing Complaints</span>
                         </div>
-                        <p className="text-sm text-yellow-700">
+                        <p className="text-sm text-yellow-700 dark:text-yellow-400">
                           You don't have any existing complaints yet. Please select "No, create new complaint" to create your first complaint.
                         </p>
                       </div>
@@ -717,10 +717,10 @@ export function EventBuilder({ events, setEvents, complaints, setComplaints, use
                     {!isCreatingNewComplaint && selectedComplaintId && (
                       <div className="space-y-2">
                         <Label>Complaint Details</Label>
-                        <div className="p-3 bg-white rounded border text-sm">
-                          <p><strong>Complaint:</strong> {complaints.find(c => c.id === selectedComplaintId)?.title}</p>
-                          <p><strong>Complained to:</strong> {currentEvent.complaintTo}</p>
-                          <p><strong>Date:</strong> {currentEvent.complaintDate}</p>
+                        <div className="p-3 bg-card rounded border border-border text-sm">
+                          <p className="text-foreground"><strong>Complaint:</strong> {complaints.find(c => c.id === selectedComplaintId)?.title}</p>
+                          <p className="text-foreground"><strong>Complained to:</strong> {currentEvent.complaintTo}</p>
+                          <p className="text-foreground"><strong>Date:</strong> {currentEvent.complaintDate}</p>
                         </div>
                       </div>
                     )}
@@ -731,7 +731,7 @@ export function EventBuilder({ events, setEvents, complaints, setComplaints, use
 
             {/* Company Response Section */}
             {currentEvent.didComplain && (
-              <div className="space-y-4 pt-6 border-t border-gray-200">
+              <div className="space-y-4 pt-6 border-t border-border">
                 <div className="space-y-2">
                   <Label className="text-base font-semibold">Company Response</Label>
                   <p className="text-sm text-muted-foreground">
@@ -750,9 +750,9 @@ export function EventBuilder({ events, setEvents, complaints, setComplaints, use
                           setCompanyDidRespond(true)
                           setShowCompanyResponseQuestion(true)
                         }}
-                        className="w-4 h-4 text-blue-600"
+                        className="w-4 h-4 text-primary accent-primary"
                       />
-                      <span className="text-sm">Yes, the company responded</span>
+                      <span className="text-sm text-foreground">Yes, the company responded</span>
                     </label>
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input
@@ -765,14 +765,14 @@ export function EventBuilder({ events, setEvents, complaints, setComplaints, use
                           setCompanyResponseDate("")
                           setCompanyResponseDetails("")
                         }}
-                        className="w-4 h-4 text-blue-600"
+                        className="w-4 h-4 text-primary accent-primary"
                       />
-                      <span className="text-sm">No, the company did not respond</span>
+                      <span className="text-sm text-foreground">No, the company did not respond</span>
                     </label>
                   </div>
 
                   {companyDidRespond && showCompanyResponseQuestion && (
-                    <div className="space-y-4 p-4 bg-gray-50 rounded-lg">
+                    <div className="space-y-4 p-4 bg-muted rounded-lg">
                       <div className="space-y-4">
                         <div className="space-y-2">
                           <Label>When did the company respond? *</Label>
@@ -786,9 +786,9 @@ export function EventBuilder({ events, setEvents, complaints, setComplaints, use
                                   setUseExactCompanyResponseDate(true)
                                   setCompanyResponseDate("")
                                 }}
-                                className="w-4 h-4 text-blue-600"
+                                className="w-4 h-4 text-primary accent-primary"
                               />
-                              <span className="text-sm">I know the exact date</span>
+                              <span className="text-sm text-foreground">I know the exact date</span>
                             </label>
                             <label className="flex items-center gap-2 cursor-pointer">
                               <input
@@ -799,9 +799,9 @@ export function EventBuilder({ events, setEvents, complaints, setComplaints, use
                                   setUseExactCompanyResponseDate(false)
                                   setCompanyResponseDate("")
                                 }}
-                                className="w-4 h-4 text-blue-600"
+                                className="w-4 h-4 text-primary accent-primary"
                               />
-                              <span className="text-sm">I only remember approximately</span>
+                              <span className="text-sm text-foreground">I only remember approximately</span>
                             </label>
                           </div>
                         </div>
@@ -862,7 +862,6 @@ export function EventBuilder({ events, setEvents, complaints, setComplaints, use
             <div className="flex gap-2">
               <Button 
                 onClick={editingId ? handleEditEvent : handleAddEvent}
-                className="bg-blue-600 hover:bg-blue-700"
               >
                 {editingId ? "Update Event" : "Add Event"}
               </Button>
@@ -887,23 +886,23 @@ export function EventBuilder({ events, setEvents, complaints, setComplaints, use
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
-                      <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">
+                      <span className="bg-primary/10 text-primary text-xs px-2 py-1 rounded">
                         {eventTypes.find(t => t.value === event.type)?.label || event.type}
                       </span>
                       <span className="text-sm text-muted-foreground">{event.approximateDate}</span>
                     </div>
-                    <h4 className="font-semibold mb-2">{event.title}</h4>
+                    <h4 className="font-semibold mb-2 text-foreground">{event.title}</h4>
                     <p className="text-sm text-muted-foreground">{event.description}</p>
                     
                     {/* Display attachments if any */}
                     {event.attachments && event.attachments.length > 0 && (
                       <div className="mt-2">
-                        <p className="text-xs text-gray-500 mb-1">Attachments:</p>
+                        <p className="text-xs text-muted-foreground mb-1">Attachments:</p>
                         <div className="flex flex-wrap gap-1">
                           {event.attachments.map((attachment) => (
                             <span
                               key={attachment.id}
-                              className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800"
+                              className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-primary/10 text-primary"
                             >
                               📎 {attachment.name}
                             </span>

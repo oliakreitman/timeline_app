@@ -19,8 +19,10 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({ onSignUpSuccess }) => {
     firstName: "",
     lastName: ""
   });
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -28,12 +30,64 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({ onSignUpSuccess }) => {
       ...prev,
       [name]: value
     }));
+    
+    // Clear errors when user types
+    if (name === "password") {
+      setPasswordError(null);
+    }
+    if (error) {
+      setError(null);
+    }
+  };
+
+  const handleConfirmPasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setConfirmPassword(e.target.value);
+    setPasswordError(null);
+  };
+
+  const getFriendlyErrorMessage = (error: any): string => {
+    const errorCode = error.code || error.message;
+    
+    // Map Firebase error codes to user-friendly messages
+    if (errorCode?.includes('email-already-in-use') || errorCode?.includes('email already exists')) {
+      return "An account with this email already exists. Please sign in instead or use a different email.";
+    }
+    if (errorCode?.includes('invalid-email')) {
+      return "Please enter a valid email address.";
+    }
+    if (errorCode?.includes('weak-password')) {
+      return "Password is too weak. Please use at least 6 characters with a mix of letters and numbers.";
+    }
+    if (errorCode?.includes('network-request-failed')) {
+      return "Network error. Please check your internet connection and try again.";
+    }
+    if (errorCode?.includes('too-many-requests')) {
+      return "Too many attempts. Please try again later.";
+    }
+    
+    // Default message for unknown errors
+    return "Unable to create account. Please try again or contact support.";
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setPasswordError(null);
+
+    // Check if passwords match
+    if (formData.password !== confirmPassword) {
+      setPasswordError("Passwords do not match. Please make sure both passwords are identical.");
+      setLoading(false);
+      return;
+    }
+
+    // Check password length
+    if (formData.password.length < 6) {
+      setPasswordError("Password must be at least 6 characters long.");
+      setLoading(false);
+      return;
+    }
 
     try {
       // Create the account
@@ -50,12 +104,8 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({ onSignUpSuccess }) => {
         onSignUpSuccess();
       }
     } catch (error: any) {
-      // Check if the error is about existing email and suggest sign in
-      if (error.message?.includes("email already exists")) {
-        setError("An account with this email already exists. Please sign in instead.");
-      } else {
-        setError(error.message || "An error occurred during sign up");
-      }
+      // Error is already logged in auth.ts with just the error code
+      setError(getFriendlyErrorMessage(error));
     } finally {
       setLoading(false);
     }
@@ -63,11 +113,17 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({ onSignUpSuccess }) => {
 
   return (
     <Card className="p-6 max-w-md mx-auto">
-      <h2 className="text-2xl font-bold mb-6 text-center">Sign Up</h2>
+      <h2 className="text-2xl font-bold mb-6 text-center text-foreground">Sign Up</h2>
       
       {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+        <div className="bg-red-100 dark:bg-red-900/20 border border-red-400 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded mb-4">
           {error}
+        </div>
+      )}
+
+      {passwordError && (
+        <div className="bg-red-100 dark:bg-red-900/20 border border-red-400 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded mb-4">
+          {passwordError}
         </div>
       )}
 
@@ -117,10 +173,38 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({ onSignUpSuccess }) => {
             type="password"
             value={formData.password}
             onChange={handleInputChange}
-            placeholder="Enter your password"
+            placeholder="Enter your password (min 6 characters)"
             required
             minLength={6}
           />
+          <p className="text-xs text-muted-foreground mt-1">Password must be at least 6 characters</p>
+        </div>
+
+        <div>
+          <Label htmlFor="confirmPassword">Repeat Password *</Label>
+          <Input
+            id="confirmPassword"
+            name="confirmPassword"
+            type="password"
+            value={confirmPassword}
+            onChange={handleConfirmPasswordChange}
+            placeholder="Re-enter your password"
+            required
+            minLength={6}
+            className={confirmPassword && formData.password && confirmPassword !== formData.password ? "border-red-500 dark:border-red-400" : ""}
+          />
+          {confirmPassword && formData.password && (
+            <p className={`text-xs mt-1 ${
+              confirmPassword === formData.password 
+                ? "text-green-600 dark:text-green-400" 
+                : "text-red-600 dark:text-red-400"
+            }`}>
+              {confirmPassword === formData.password ? "✓ Passwords match" : "✗ Passwords do not match"}
+            </p>
+          )}
+          {!confirmPassword && (
+            <p className="text-xs text-muted-foreground mt-1">Please enter the same password again</p>
+          )}
         </div>
 
         <Button 
@@ -130,6 +214,13 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({ onSignUpSuccess }) => {
         >
           {loading ? "Creating Account..." : "Sign Up"}
         </Button>
+
+        <div className="mt-4 text-center text-sm text-muted-foreground">
+          Already have an account?{" "}
+          <span className="text-primary hover:underline cursor-pointer font-medium">
+            Sign in instead
+          </span>
+        </div>
       </form>
     </Card>
   );

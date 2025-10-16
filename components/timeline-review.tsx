@@ -51,6 +51,15 @@ export function TimelineReview({ contactInfo, employerInfo, events, setEvents, c
     return dateString
   }
 
+  // Helper function to format birthday (avoiding timezone issues)
+  const formatBirthday = (dateString: string) => {
+    if (!dateString) return 'Not provided'
+    // Parse as local date to avoid timezone issues
+    const [year, month, day] = dateString.split('-').map(Number)
+    const date = new Date(year, month - 1, day) // month is 0-indexed
+    return date.toLocaleDateString()
+  }
+
   // Helper function to format employer dates - handles both exact dates and approximate text
   const formatEmployerDate = (dateString: string) => {
     // Try to parse as a date first
@@ -232,7 +241,7 @@ export function TimelineReview({ contactInfo, employerInfo, events, setEvents, c
             </div>
             <div>
               <p className="text-sm font-medium text-muted-foreground">Birthday</p>
-              <p>{contactInfo.birthday ? new Date(contactInfo.birthday).toLocaleDateString() : 'Not provided'}</p>
+              <p>{formatBirthday(contactInfo.birthday)}</p>
             </div>
             <div>
               <p className="text-sm font-medium text-muted-foreground">Address</p>
@@ -241,8 +250,8 @@ export function TimelineReview({ contactInfo, employerInfo, events, setEvents, c
           </div>
           
           {/* Emergency Contact Information */}
-          <div className="mt-6 pt-6 border-t border-gray-200">
-            <h4 className="text-sm font-semibold text-gray-900 mb-4">Emergency Contact</h4>
+          <div className="mt-6 pt-6 border-t border-border">
+            <h4 className="text-sm font-semibold text-foreground mb-4">Emergency Contact</h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Emergency Contact Name</p>
@@ -356,38 +365,38 @@ export function TimelineReview({ contactInfo, employerInfo, events, setEvents, c
                   onDragLeave={handleDragLeave}
                   onDrop={(e) => handleDrop(e, index)}
                   onDragEnd={handleDragEnd}
-                  className={`border-l-2 ${('isComplaint' in event && event.isComplaint) ? 'border-orange-200' : 'border-blue-200'} pl-4 pb-4 relative transition-all duration-200 ${
-                    events.length > 1 && !isChronological && !('isComplaint' in event && event.isComplaint) ? 'cursor-move hover:bg-gray-50' : ''
+                  className={`border-l-2 ${('isComplaint' in event && event.isComplaint) ? 'border-orange-500/30' : 'border-primary/30'} pl-4 pb-4 relative transition-all duration-200 ${
+                    events.length > 1 && !isChronological && !('isComplaint' in event && event.isComplaint) ? 'cursor-move hover:bg-muted/50' : ''
                   } ${
                     draggedOver === index && draggedIndex !== index && !isChronological
-                      ? 'bg-blue-50 border-l-blue-400' 
+                      ? 'bg-primary/10 border-l-primary' 
                       : ''
                   } ${
                     draggedIndex === index ? 'opacity-50' : ''
                   }`}
                 >
-                  <div className={`absolute -left-2 top-0 w-4 h-4 ${('isComplaint' in event && event.isComplaint) ? 'bg-orange-600' : 'bg-blue-600'} rounded-full`}></div>
+                  <div className={`absolute -left-2 top-0 w-4 h-4 ${('isComplaint' in event && event.isComplaint) ? 'bg-orange-600 dark:bg-orange-500' : 'bg-primary'} rounded-full`}></div>
                   <div className="flex items-start gap-3">
                     {events.length > 1 && !isChronological && !('isComplaint' in event && event.isComplaint) && (
-                      <GripVertical className="h-4 w-4 mt-1 text-muted-foreground hover:text-blue-600 cursor-grab active:cursor-grabbing" />
+                      <GripVertical className="h-4 w-4 mt-1 text-muted-foreground hover:text-primary cursor-grab active:cursor-grabbing" />
                     )}
                     <FileText className="h-4 w-4 mt-1 text-muted-foreground" />
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className={`text-xs px-2 py-1 rounded ${('isComplaint' in event && event.isComplaint) ? 'bg-orange-100 text-orange-800' : 'bg-blue-100 text-blue-800'}`}>
+                        <span className={`text-xs px-2 py-1 rounded ${('isComplaint' in event && event.isComplaint) ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-400' : 'bg-primary/10 text-primary'}`}>
                           {('isComplaint' in event && event.isComplaint) ? 'Complaint' : (eventTypes.find(t => t.value === event.type)?.label || event.type)}
                         </span>
                         <span className="text-sm text-muted-foreground">
                           <strong>{('isComplaint' in event && event.isComplaint) ? 'Complaint Date:' : 'Event Date:'}</strong> {formatEventDate(event.approximateDate)}
                         </span>
                       </div>
-                      <h4 className="font-semibold mb-1">{event.title}</h4>
+                      <h4 className="font-semibold mb-1 text-foreground">{event.title}</h4>
                       <p className="text-sm text-muted-foreground">{event.description}</p>
                       
                       {/* Complaint Event Details */}
                       {('isComplaint' in event && event.isComplaint) && (
-                        <div className="mt-2 p-2 bg-orange-50 border border-orange-200 rounded text-sm">
-                          <div className="text-xs text-gray-500 space-y-1">
+                        <div className="mt-2 p-2 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded text-sm">
+                          <div className="text-xs text-muted-foreground space-y-1">
                             <p><strong>Complained to:</strong> {event.details.complaintTo}</p>
                             <p><strong>Incident Date:</strong> {formatEventDate(event.details.incidentDate)}</p>
                             <p><strong>Related Events:</strong> {event.details.relatedEventIds.length} incident(s)</p>
@@ -397,9 +406,9 @@ export function TimelineReview({ contactInfo, employerInfo, events, setEvents, c
                       
                       {/* Complaint Information */}
                       {('didComplain' in event && event.didComplain) && (
-                        <div className="mt-2 p-2 bg-orange-50 border border-orange-200 rounded text-sm">
+                        <div className="mt-2 p-2 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded text-sm">
                           <div className="flex items-center gap-2 mb-1">
-                            <span className="text-orange-600 font-medium">📢 Complaint Filed</span>
+                            <span className="text-orange-600 dark:text-orange-400 font-medium">📢 Complaint Filed</span>
                           </div>
                           {(() => {
                             // If event is linked to a complaint, show complaint data
@@ -428,11 +437,11 @@ export function TimelineReview({ contactInfo, employerInfo, events, setEvents, c
 
                       {/* Company Response Information */}
                       {('companyDidRespond' in event && event.companyDidRespond) && (
-                        <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-sm">
+                        <div className="mt-2 p-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded text-sm">
                           <div className="flex items-center gap-2 mb-1">
-                            <span className="text-green-600 font-medium">🏢 Company Response</span>
+                            <span className="text-green-600 dark:text-green-400 font-medium">🏢 Company Response</span>
                           </div>
-                          <div className="space-y-1">
+                          <div className="space-y-1 text-foreground">
                             <p><strong>Company Responded:</strong> Yes</p>
                             {event.companyResponseDate && (
                               <p><strong>Response Date:</strong> {formatEventDate(event.companyResponseDate)}</p>
@@ -440,7 +449,7 @@ export function TimelineReview({ contactInfo, employerInfo, events, setEvents, c
                             {event.companyResponseDetails && (
                               <div>
                                 <p><strong>What the company did:</strong></p>
-                                <p className="text-gray-700 italic pl-2">{event.companyResponseDetails}</p>
+                                <p className="text-muted-foreground italic pl-2">{event.companyResponseDetails}</p>
                               </div>
                             )}
                           </div>
@@ -449,11 +458,11 @@ export function TimelineReview({ contactInfo, employerInfo, events, setEvents, c
 
                       {/* Company Did Not Respond */}
                       {('companyDidRespond' in event && event.companyDidRespond === false) && (
-                        <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-sm">
+                        <div className="mt-2 p-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded text-sm">
                           <div className="flex items-center gap-2 mb-1">
-                            <span className="text-red-600 font-medium">🏢 Company Response</span>
+                            <span className="text-red-600 dark:text-red-400 font-medium">🏢 Company Response</span>
                           </div>
-                          <p><strong>Company Responded:</strong> No</p>
+                          <p className="text-foreground"><strong>Company Responded:</strong> No</p>
                         </div>
                       )}
                     </div>
@@ -465,8 +474,8 @@ export function TimelineReview({ contactInfo, employerInfo, events, setEvents, c
         </CardContent>
       </Card>
 
-      <div className="bg-blue-50 p-4 rounded-lg">
-        <h4 className="font-semibold mb-2">Next Steps</h4>
+      <div className="bg-primary/10 p-4 rounded-lg border border-primary/20">
+        <h4 className="font-semibold mb-2 text-foreground">Next Steps</h4>
         <p className="text-sm text-muted-foreground">
           After submitting this form, our legal team will review your case and contact you within 2-3 business days 
           to discuss your situation and potential legal options. All information provided will be kept strictly confidential.

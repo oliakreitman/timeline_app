@@ -12,13 +12,21 @@ interface TimelineDisplayProps {
 
 export const TimelineDisplay: React.FC<TimelineDisplayProps> = ({ timeline, onEdit }) => {
   const formatDate = (dateString: string) => {
-    // Try to parse as a date, if it fails, return the original string
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) {
-      // If it's not a valid date, return the approximate date string as-is
-      return dateString;
+    if (!dateString) return 'Not provided'
+    
+    // Try to parse as a date first
+    if (dateString.includes('-')) {
+      // It's a valid date string (YYYY-MM-DD format)
+      // Parse it as local date to avoid timezone issues
+      const [year, month, day] = dateString.split('-').map(Number)
+      const parsedDate = new Date(year, month - 1, day) // month is 0-indexed
+      if (!isNaN(parsedDate.getTime())) {
+        return parsedDate.toLocaleDateString()
+      }
     }
-    return date.toLocaleDateString();
+    
+    // If it's not a valid date format, return the string as-is (approximate date)
+    return dateString
   }
 
   // Convert complaints to timeline events
@@ -100,9 +108,9 @@ export const TimelineDisplay: React.FC<TimelineDisplayProps> = ({ timeline, onEd
 
   const getStatusBadge = (status: string) => {
     const statusColors = {
-      draft: "bg-gray-100 text-gray-800",
-      submitted: "bg-green-100 text-green-800",
-      reviewed: "bg-blue-100 text-blue-800"
+      draft: "bg-muted text-muted-foreground",
+      submitted: "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400",
+      reviewed: "bg-primary/10 text-primary"
     };
     
     return (
@@ -116,7 +124,7 @@ export const TimelineDisplay: React.FC<TimelineDisplayProps> = ({ timeline, onEd
     <div className="space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Your Timeline</h2>
+        <h2 className="text-2xl font-bold text-foreground">Your Timeline</h2>
         <div className="flex items-center gap-4">
           {getStatusBadge(timeline.status)}
           {onEdit && (
@@ -127,7 +135,7 @@ export const TimelineDisplay: React.FC<TimelineDisplayProps> = ({ timeline, onEd
         </div>
       </div>
 
-      <div className="text-sm text-gray-600">
+      <div className="text-sm text-muted-foreground">
         <p>Submitted: {formatDate(timeline.submittedAt)}</p>
         {timeline.updatedAt !== timeline.submittedAt && (
           <p>Last Updated: {formatDate(timeline.updatedAt)}</p>
@@ -147,8 +155,8 @@ export const TimelineDisplay: React.FC<TimelineDisplayProps> = ({ timeline, onEd
           <p><strong>Address:</strong> {timeline.contactInfo.address}</p>
           
           {/* Emergency Contact Information */}
-          <div className="mt-4 pt-4 border-t border-gray-200">
-            <h4 className="font-semibold text-gray-900 mb-2">Emergency Contact</h4>
+          <div className="mt-4 pt-4 border-t border-border">
+            <h4 className="font-semibold text-foreground mb-2">Emergency Contact</h4>
             <p><strong>Name:</strong> {timeline.contactInfo.emergencyContactName || 'Not provided'}</p>
             <p><strong>Phone:</strong> {timeline.contactInfo.emergencyContactPhone || 'Not provided'}</p>
           </div>
@@ -177,18 +185,18 @@ export const TimelineDisplay: React.FC<TimelineDisplayProps> = ({ timeline, onEd
         </CardHeader>
         <CardContent>
           {allEvents.length === 0 ? (
-            <p className="text-gray-500">No events recorded</p>
+            <p className="text-muted-foreground">No events recorded</p>
           ) : (
             <div className="space-y-4">
               {sortEventsByDate(allEvents)
                 .map((event, index) => (
                   <div key={event.id} className={`border-l-2 ${
-                    ('isComplaint' in event && event.isComplaint) ? 'border-orange-500' : 
-                    ('isCompanyResponse' in event && event.isCompanyResponse) ? 'border-green-500' : 
-                    'border-blue-500'
+                    ('isComplaint' in event && event.isComplaint) ? 'border-orange-500 dark:border-orange-600' : 
+                    ('isCompanyResponse' in event && event.isCompanyResponse) ? 'border-green-500 dark:border-green-600' : 
+                    'border-primary'
                   } pl-4 pb-4`}>
                     <div className="flex items-center gap-2 mb-2">
-                      <span className="text-sm font-medium text-blue-600">
+                      <span className="text-sm font-medium text-primary">
                         <strong>{
                           ('isComplaint' in event && event.isComplaint) ? 'Complaint Date:' : 
                           ('isCompanyResponse' in event && event.isCompanyResponse) ? 'Response Date:' : 
@@ -196,22 +204,22 @@ export const TimelineDisplay: React.FC<TimelineDisplayProps> = ({ timeline, onEd
                         }</strong> {formatDate(event.approximateDate)}
                       </span>
                       <span className={`text-xs px-2 py-1 rounded-full ${
-                        ('isComplaint' in event && event.isComplaint) ? 'bg-orange-100 text-orange-800' : 
-                        ('isCompanyResponse' in event && event.isCompanyResponse) ? 'bg-green-100 text-green-800' : 
-                        'bg-gray-100'
+                        ('isComplaint' in event && event.isComplaint) ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-400' : 
+                        ('isCompanyResponse' in event && event.isCompanyResponse) ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400' : 
+                        'bg-muted text-muted-foreground'
                       }`}>
                         {('isComplaint' in event && event.isComplaint) ? 'Complaint' : 
                          ('isCompanyResponse' in event && event.isCompanyResponse) ? 'Company Response' : 
                          event.type}
                       </span>
                     </div>
-                    <h4 className="font-semibold mb-1">{event.title}</h4>
-                    <p className="text-gray-600 text-sm mb-2">{event.description}</p>
+                    <h4 className="font-semibold mb-1 text-foreground">{event.title}</h4>
+                    <p className="text-muted-foreground text-sm mb-2">{event.description}</p>
                     
                     {/* Complaint Event Details */}
                     {('isComplaint' in event && event.isComplaint) ? (
-                      <div className="mt-2 p-2 bg-orange-50 border border-orange-200 rounded text-sm">
-                        <div className="text-xs text-gray-500 space-y-1">
+                      <div className="mt-2 p-2 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded text-sm">
+                        <div className="text-xs text-muted-foreground space-y-1">
                           <p><strong>Complained to:</strong> {(event as any).details?.complaintTo || 'Not specified'}</p>
                           <p><strong>Incident Date:</strong> {(event as any).details?.incidentDate ? formatDate((event as any).details.incidentDate) : 'Not specified'}</p>
                           <p><strong>Related Events:</strong> {(event as any).details?.relatedEventIds?.length || 0} incident(s)</p>
@@ -221,20 +229,20 @@ export const TimelineDisplay: React.FC<TimelineDisplayProps> = ({ timeline, onEd
 
                     {/* Company Response Event Details */}
                     {('isCompanyResponse' in event && event.isCompanyResponse) ? (
-                      <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-sm">
-                        <div className="text-xs text-gray-500 space-y-1">
+                      <div className="mt-2 p-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded text-sm">
+                        <div className="text-xs text-muted-foreground space-y-1">
                           <p><strong>Response to:</strong> {(event as any).details?.originalEventTitle || 'Original incident'}</p>
                           <p><strong>Response Details:</strong></p>
-                          <p className="text-gray-700 italic pl-2">{(event as any).details?.responseDetails || 'No details provided'}</p>
+                          <p className="text-muted-foreground italic pl-2">{(event as any).details?.responseDetails || 'No details provided'}</p>
                         </div>
                       </div>
                     ) : null}
                     
                     {/* Display complaint information if any */}
                     {event.didComplain && (
-                      <div className="mb-2 p-2 bg-orange-50 border border-orange-200 rounded text-sm">
+                      <div className="mb-2 p-2 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded text-sm">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="text-orange-600 font-medium">📢 Complaint Filed</span>
+                          <span className="text-orange-600 dark:text-orange-400 font-medium">📢 Complaint Filed</span>
                         </div>
                         {(() => {
                           // If event is linked to a complaint, show complaint data
@@ -265,24 +273,24 @@ export const TimelineDisplay: React.FC<TimelineDisplayProps> = ({ timeline, onEd
                     {event.companyDidRespond !== undefined && (
                       <div className={`mb-2 p-2 rounded text-sm ${
                         event.companyDidRespond 
-                          ? 'bg-green-50 border border-green-200' 
-                          : 'bg-red-50 border border-red-200'
+                          ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800' 
+                          : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800'
                       }`}>
                         <div className="flex items-center gap-2 mb-1">
                           <span className={`font-medium ${
-                            event.companyDidRespond ? 'text-green-600' : 'text-red-600'
+                            event.companyDidRespond ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
                           }`}>
                             🏢 Company Response
                           </span>
                         </div>
-                        <p><strong>Company Responded:</strong> {event.companyDidRespond ? 'Yes' : 'No'}</p>
+                        <p className="text-foreground"><strong>Company Responded:</strong> {event.companyDidRespond ? 'Yes' : 'No'}</p>
                         {event.companyDidRespond && event.companyResponseDate && (
-                          <p><strong>Response Date:</strong> {formatDate(event.companyResponseDate)}</p>
+                          <p className="text-foreground"><strong>Response Date:</strong> {formatDate(event.companyResponseDate)}</p>
                         )}
                         {event.companyDidRespond && event.companyResponseDetails && (
                           <div>
-                            <p><strong>What the company did:</strong></p>
-                            <p className="text-gray-700 italic pl-2">{event.companyResponseDetails}</p>
+                            <p className="text-foreground"><strong>What the company did:</strong></p>
+                            <p className="text-muted-foreground italic pl-2">{event.companyResponseDetails}</p>
                           </div>
                         )}
                       </div>
@@ -291,12 +299,12 @@ export const TimelineDisplay: React.FC<TimelineDisplayProps> = ({ timeline, onEd
                     {/* Display attachments if any */}
                     {event.attachments && event.attachments.length > 0 && (
                       <div className="mb-2">
-                        <p className="text-xs text-gray-500 mb-1">📎 Attachments:</p>
+                        <p className="text-xs text-muted-foreground mb-1">📎 Attachments:</p>
                         <div className="flex flex-wrap gap-1">
                           {event.attachments.map((attachment) => (
                             <span
                               key={attachment.id}
-                              className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800"
+                              className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-primary/10 text-primary"
                             >
                               {attachment.name} ({(attachment.size / 1024).toFixed(1)} KB)
                             </span>
@@ -306,7 +314,7 @@ export const TimelineDisplay: React.FC<TimelineDisplayProps> = ({ timeline, onEd
                     )}
                     
                     {Object.keys(event.details).length > 0 && (
-                      <div className="text-xs text-gray-500">
+                      <div className="text-xs text-muted-foreground">
                         <strong>Additional Details:</strong>
                         <ul className="mt-1 space-y-1">
                           {Object.entries(event.details).map(([key, value]) => (

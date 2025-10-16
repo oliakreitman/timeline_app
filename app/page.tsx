@@ -231,7 +231,91 @@ export default function IntakeForm() {
     }
   }, [user]);
 
+  // Validate contact information
+  const validateContactInfo = (): boolean => {
+    const { firstName, lastName, email, phone, address, birthday, emergencyContactName, emergencyContactPhone } = contactInfo
+    const missingFields: string[] = []
+    
+    if (!firstName?.trim()) missingFields.push("First Name")
+    if (!lastName?.trim()) missingFields.push("Last Name")
+    if (!email?.trim()) {
+      missingFields.push("Email Address")
+    } else {
+      // Email format validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      if (!emailRegex.test(email)) {
+        alert("Please enter a valid email address")
+        return false
+      }
+    }
+    if (!phone?.trim()) {
+      missingFields.push("Phone Number")
+    } else {
+      // Phone format validation
+      const phoneRegex = /^\(\d{3}\) \d{3}-\d{4}$/
+      if (!phoneRegex.test(phone)) {
+        alert("Please enter a valid phone number in format: (555) 123-4567")
+        return false
+      }
+    }
+    if (!address?.trim()) missingFields.push("Address")
+    if (!birthday?.trim()) missingFields.push("Birthday")
+    if (!emergencyContactName?.trim()) missingFields.push("Emergency Contact Name")
+    if (!emergencyContactPhone?.trim()) {
+      missingFields.push("Emergency Contact Phone")
+    } else {
+      // Emergency phone format validation
+      const phoneRegex = /^\(\d{3}\) \d{3}-\d{4}$/
+      if (!phoneRegex.test(emergencyContactPhone)) {
+        alert("Please enter a valid emergency contact phone number in format: (555) 123-4567")
+        return false
+      }
+    }
+    
+    if (missingFields.length > 0) {
+      alert(`Please fill in the following required fields:\n\n• ${missingFields.join('\n• ')}`)
+      return false
+    }
+    
+    return true
+  }
+
+  // Validate employer information
+  const validateEmployerInfo = (): boolean => {
+    const { companyName, location, jobTitle, startDate, employmentType } = employerInfo
+    const missingFields: string[] = []
+    
+    if (!companyName?.trim()) missingFields.push("Company Name")
+    if (!location?.trim()) missingFields.push("Company Location")
+    if (!jobTitle?.trim()) missingFields.push("Job Title")
+    if (!startDate?.trim()) missingFields.push("Start Date")
+    if (!employmentType?.trim()) missingFields.push("Employment Type")
+    
+    if (missingFields.length > 0) {
+      alert(`Please fill in the following required fields:\n\n• ${missingFields.join('\n• ')}`)
+      return false
+    }
+    
+    return true
+  }
+
   const handleNext = () => {
+    // Validate current step before proceeding
+    if (currentStep === 1) {
+      if (!validateContactInfo()) {
+        return
+      }
+    } else if (currentStep === 2) {
+      if (!validateEmployerInfo()) {
+        return
+      }
+    } else if (currentStep === 3) {
+      if (events.length === 0) {
+        alert("Please add at least one timeline event before proceeding")
+        return
+      }
+    }
+
     if (currentStep < steps.length) {
       setCurrentStep(currentStep + 1)
     }
@@ -246,6 +330,25 @@ export default function IntakeForm() {
   const handleSubmit = async () => {
     if (!user) {
       alert("Please sign in to submit your timeline");
+      return;
+    }
+
+    // Final validation before submission
+    if (!validateContactInfo()) {
+      alert("Please complete all required contact information fields");
+      setCurrentStep(1);
+      return;
+    }
+
+    if (!validateEmployerInfo()) {
+      alert("Please complete all required employer information fields");
+      setCurrentStep(2);
+      return;
+    }
+
+    if (events.length === 0) {
+      alert("Please add at least one timeline event");
+      setCurrentStep(3);
       return;
     }
 
@@ -336,14 +439,14 @@ export default function IntakeForm() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="bg-white border-b">
+      <div className="bg-card border-b border-border">
         <div className="max-w-4xl mx-auto px-4 py-6">
           {/* User info if signed in */}
           {user && (
             <div className="flex justify-between items-center mb-4">
-              <div className="text-sm text-gray-600">
+              <div className="text-sm text-muted-foreground">
                 Welcome, {userProfile?.firstName && userProfile?.lastName 
                   ? `${userProfile.firstName} ${userProfile.lastName}`
                   : userProfile?.displayName || user.email}
@@ -377,7 +480,7 @@ export default function IntakeForm() {
 
           {/* Progress Bar */}
           <div className="space-y-2">
-            <div className="flex justify-between text-sm text-gray-600">
+            <div className="flex justify-between text-sm text-muted-foreground">
               <span>
                 Step {currentStep} of {steps.length}
               </span>
@@ -391,11 +494,11 @@ export default function IntakeForm() {
             {steps.map((step) => (
               <div
                 key={step.id}
-                className={`flex-1 text-center ${step.id <= currentStep ? "text-blue-600" : "text-gray-400"}`}
+                className={`flex-1 text-center ${step.id <= currentStep ? "text-primary" : "text-muted-foreground"}`}
               >
                 <div
                   className={`w-8 h-8 rounded-full mx-auto mb-2 flex items-center justify-center text-sm font-medium ${
-                    step.id <= currentStep ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-400"
+                    step.id <= currentStep ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
                   }`}
                 >
                   {step.id}
@@ -413,7 +516,7 @@ export default function IntakeForm() {
           <CardHeader>
             <CardTitle className="text-xl">{steps[currentStep - 1].title}</CardTitle>
             {steps[currentStep - 1].description && (
-              <p className="text-gray-600">{steps[currentStep - 1].description}</p>
+              <p className="text-muted-foreground">{steps[currentStep - 1].description}</p>
             )}
           </CardHeader>
           <CardContent>
@@ -434,20 +537,20 @@ export default function IntakeForm() {
             )}
 
             {/* Navigation */}
-            <div className="flex justify-between mt-8 pt-6 border-t">
+            <div className="flex justify-between mt-8 pt-6 border-t border-border">
               <Button variant="outline" onClick={handlePrevious} disabled={currentStep === 1}>
                 Previous
               </Button>
 
               {currentStep < steps.length ? (
-                <Button onClick={handleNext} className="bg-blue-600 hover:bg-blue-700">
+                <Button onClick={handleNext}>
                   Next Page
                 </Button>
               ) : (
                 <Button
                   onClick={handleSubmit}
-                  className="bg-green-600 hover:bg-green-700"
                   disabled={loading}
+                  className="bg-green-600 hover:bg-green-700 text-white dark:bg-green-700 dark:hover:bg-green-800"
                 >
                   {loading ? "Saving..." : existingSubmission ? "Update Timeline" : "Submit Timeline"}
                 </Button>

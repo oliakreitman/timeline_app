@@ -58,8 +58,8 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onEditTimeline }) => {
     return (
       <Card className="p-6 max-w-md mx-auto">
         <div className="text-center">
-          <h2 className="text-2xl font-bold mb-4">Not Signed In</h2>
-          <p className="text-gray-600">Please sign in to view your profile.</p>
+          <h2 className="text-2xl font-bold mb-4 text-foreground">Not Signed In</h2>
+          <p className="text-muted-foreground">Please sign in to view your profile.</p>
         </div>
       </Card>
     );
@@ -69,7 +69,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onEditTimeline }) => {
     <div className="max-w-4xl mx-auto space-y-6">
       {/* User Account Info */}
       <Card className="p-6">
-        <h2 className="text-2xl font-bold mb-6 text-center">User Profile</h2>
+        <h2 className="text-2xl font-bold mb-6 text-center text-foreground">User Profile</h2>
         
         <div className="space-y-4">
           <div>
@@ -116,8 +116,8 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onEditTimeline }) => {
         ) : (
           <Card className="p-6">
             <div className="text-center">
-              <h3 className="text-lg font-semibold mb-2">No Timeline Found</h3>
-              <p className="text-gray-600 mb-4">
+              <h3 className="text-lg font-semibold mb-2 text-foreground">No Timeline Found</h3>
+              <p className="text-muted-foreground mb-4">
                 You haven't submitted a timeline yet.
               </p>
               {onEditTimeline && (

@@ -6,7 +6,8 @@ import {
   UserCredential,
   updateProfile,
   fetchSignInMethodsForEmail,
-  getIdToken
+  getIdToken,
+  sendPasswordResetEmail
 } from "firebase/auth";
 import { auth } from "./firebase";
 import { createUserProfile } from "./database";
@@ -28,8 +29,8 @@ export const checkEmailExists = async (email: string): Promise<boolean> => {
   try {
     const signInMethods = await fetchSignInMethodsForEmail(auth, email);
     return signInMethods.length > 0;
-  } catch (error) {
-    console.error("Error checking email:", error);
+  } catch (error: any) {
+    // Silently fail - error will be handled by the caller
     return false;
   }
 };
@@ -68,8 +69,8 @@ export const signUp = async (data: SignUpData): Promise<UserCredential> => {
     });
     
     return userCredential;
-  } catch (error) {
-    console.error("Error signing up:", error);
+  } catch (error: any) {
+    // Re-throw error to be handled by the UI with user-friendly messages
     throw error;
   }
 };
@@ -83,8 +84,8 @@ export const signIn = async (data: SignInData): Promise<UserCredential> => {
       data.password
     );
     return userCredential;
-  } catch (error) {
-    console.error("Error signing in:", error);
+  } catch (error: any) {
+    // Re-throw error to be handled by the UI with user-friendly messages
     throw error;
   }
 };
@@ -93,8 +94,8 @@ export const signIn = async (data: SignInData): Promise<UserCredential> => {
 export const logOut = async (): Promise<void> => {
   try {
     await signOut(auth);
-  } catch (error) {
-    console.error("Error signing out:", error);
+  } catch (error: any) {
+    // Re-throw error to be handled by the UI
     throw error;
   }
 };
@@ -110,8 +111,8 @@ export const getCurrentUserToken = async (): Promise<string | null> => {
     // This will automatically refresh the token if it's expired
     const token = await getIdToken(user, true);
     return token;
-  } catch (error) {
-    console.error("Error getting user token:", error);
+  } catch (error: any) {
+    // Silently fail and return null
     return null;
   }
 };
@@ -121,8 +122,8 @@ export const isUserAuthenticated = async (): Promise<boolean> => {
   try {
     const token = await getCurrentUserToken();
     return !!token;
-  } catch (error) {
-    console.error("Error checking authentication:", error);
+  } catch (error: any) {
+    // Silently fail and return false
     return false;
   }
 };
@@ -130,4 +131,14 @@ export const isUserAuthenticated = async (): Promise<boolean> => {
 // Get current user
 export const getCurrentUser = (): User | null => {
   return auth.currentUser;
+};
+
+// Send password reset email
+export const resetPassword = async (email: string): Promise<void> => {
+  try {
+    await sendPasswordResetEmail(auth, email);
+  } catch (error: any) {
+    // Re-throw error to be handled by the UI with user-friendly messages
+    throw error;
+  }
 };
