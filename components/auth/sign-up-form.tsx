@@ -202,9 +202,6 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({ onSignUpSuccess }) => {
               {confirmPassword === formData.password ? "✓ Passwords match" : "✗ Passwords do not match"}
             </p>
           )}
-          {!confirmPassword && (
-            <p className="text-xs text-muted-foreground mt-1">Please enter the same password again</p>
-          )}
         </div>
 
         <Button 
