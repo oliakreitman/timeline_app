@@ -3,12 +3,14 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { User, onAuthStateChanged } from "firebase/auth";
 import { auth } from "./firebase";
-import { getUserProfile, UserProfile } from "./database";
+import { getUserProfile, UserProfile, UserRole } from "./database";
 
 interface AuthContextType {
   user: User | null;
   userProfile: UserProfile | null;
   loading: boolean;
+  isAdmin: boolean;
+  userRole: UserRole;
   refreshUserProfile: () => Promise<void>;
 }
 
@@ -16,6 +18,8 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   userProfile: null,
   loading: true,
+  isAdmin: false,
+  userRole: 'user',
   refreshUserProfile: async () => {}
 });
 
@@ -35,6 +39,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const userRole: UserRole = userProfile?.role || 'user';
+  const isAdmin = userRole === 'admin';
 
   const refreshUserProfile = async () => {
     if (user) {
@@ -77,6 +84,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     user,
     userProfile,
     loading,
+    isAdmin,
+    userRole,
     refreshUserProfile
   };
 

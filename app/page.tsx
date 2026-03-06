@@ -91,9 +91,10 @@ const steps: Step[] = [
 ]
 
 export default function IntakeForm() {
-  const { user, userProfile } = useAuth()
+  const { user, userProfile, isAdmin } = useAuth()
   const [showAuthDemo, setShowAuthDemo] = useState(false)
   const [currentStep, setCurrentStep] = useState(1)
+  const [previousUserId, setPreviousUserId] = useState<string | null>(null)
   const [contactInfo, setContactInfo] = useState<ContactInfo>({
     firstName: "",
     lastName: "",
@@ -122,14 +123,52 @@ export default function IntakeForm() {
 
   const progress = (currentStep / steps.length) * 100
 
+  // Reset form when user changes
+  const resetForm = () => {
+    setContactInfo({
+      firstName: "",
+      lastName: "",
+      email: "",
+      phone: "",
+      address: "",
+      birthday: "",
+      emergencyContactName: "",
+      emergencyContactPhone: "",
+    });
+    setEmployerInfo({
+      companyName: "",
+      location: "",
+      jobTitle: "",
+      startDate: "",
+      endDate: "",
+      payRate: "",
+      employmentType: "",
+    });
+    setEvents([]);
+    setComplaints([]);
+    setExistingSubmission(null);
+    setCurrentStep(1);
+  };
+
   // Load existing timeline data when user signs in
   useEffect(() => {
     const loadExistingTimeline = async () => {
       if (user && !loading) {
+        // Check if user changed - reset form if different user
+        if (previousUserId && previousUserId !== user.uid) {
+          console.log("User changed, resetting form...");
+          resetForm();
+        }
+        setPreviousUserId(user.uid);
+        
         setLoading(true);
         try {
+          console.log("Loading timeline for user:", user.uid);
           const submission = await getUserTimelineSubmission(user.uid);
+          console.log("Submission found:", submission ? "yes" : "no");
+          
           if (submission) {
+            console.log("Submission userId:", submission.userId);
             setExistingSubmission(submission);
             // Ensure all contact info fields are defined to prevent controlled/uncontrolled input errors
             setContactInfo({
@@ -150,6 +189,9 @@ export default function IntakeForm() {
             if (submission.complaints) {
               setComplaints(submission.complaints);
             }
+          } else {
+            // No submission found - make sure form is clean
+            resetForm();
           }
         } catch (error) {
           console.error("Error loading existing timeline:", error);
@@ -451,7 +493,15 @@ export default function IntakeForm() {
                   ? `${userProfile.firstName} ${userProfile.lastName}`
                   : userProfile?.displayName || user.email}
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-2 items-center">
+                {isAdmin && (
+                  <a
+                    href="/admin"
+                    className="px-3 py-1.5 text-xs font-medium bg-purple-100 text-purple-800 rounded hover:bg-purple-200 transition-colors"
+                  >
+                    Admin Dashboard
+                  </a>
+                )}
                 <Button
                   variant="outline"
                   size="sm"

@@ -131,6 +131,43 @@ const checkAuth = (): string => {
   return user.uid;
 };
 
+// Helper function to get current user's role from Firestore
+const getCurrentUserRole = async (): Promise<UserRole> => {
+  const userId = checkAuth();
+  const docRef = doc(db, "users", userId);
+  const docSnap = await getDoc(docRef);
+  
+  if (docSnap.exists()) {
+    const data = docSnap.data();
+    return (data.role as UserRole) || 'user';
+  }
+  return 'user';
+};
+
+// Helper function to check if current user is admin
+export const isCurrentUserAdmin = async (): Promise<boolean> => {
+  try {
+    const role = await getCurrentUserRole();
+    return role === 'admin';
+  } catch {
+    return false;
+  }
+};
+
+// Helper function to check authorization - returns true if user can access the target userId's data
+const checkAuthorizationForUser = async (targetUserId: string): Promise<boolean> => {
+  const currentUserId = checkAuth();
+  
+  // User can always access their own data
+  if (currentUserId === targetUserId) {
+    return true;
+  }
+  
+  // Check if current user is admin
+  const isAdmin = await isCurrentUserAdmin();
+  return isAdmin;
+};
+
 // Helper function to handle Firebase errors
 const handleFirebaseError = (error: any, operation: string): never => {
   console.error(`Error in ${operation}:`, error);
@@ -153,37 +190,51 @@ const handleFirebaseError = (error: any, operation: string): never => {
 // User Profile Operations
 export const createUserProfile = async (userId: string, userData: UserProfile): Promise<void> => {
   try {
-    // Verify the user is authenticated and matches the userId
-    const currentUserId = checkAuth();
-    if (currentUserId !== userId) {
+    // During signup, auth.currentUser should be set, but we add logging for debugging
+    const currentUser = auth.currentUser;
+    console.log("createUserProfile called for userId:", userId);
+    console.log("auth.currentUser:", currentUser?.uid || "null");
+    
+    // If there's a current user, verify they match (unless creating own profile right after signup)
+    if (currentUser && currentUser.uid !== userId) {
       throw new Error("User ID mismatch: Cannot create profile for different user");
     }
     
+    // If no current user at all, this might be a timing issue - still try to create
+    // Firestore security rules will be the final guard
+    console.log("Attempting to create Firestore document...");
     await setDoc(doc(db, "users", userId), userData);
-  } catch (error) {
+    console.log("Firestore document created successfully for:", userId);
+  } catch (error: any) {
+    console.error("Error in createUserProfile:", error);
+    console.error("Error code:", error.code);
+    console.error("Error message:", error.message);
     handleFirebaseError(error, "createUserProfile");
   }
 };
 
 export const getUserProfile = async (userId: string): Promise<UserProfile | null> => {
   try {
-    // Verify the user is authenticated and matches the userId
-    const currentUserId = checkAuth();
-    if (currentUserId !== userId) {
-      throw new Error("User ID mismatch: Cannot access profile for different user");
+    // Verify the user is authenticated and has permission
+    const canAccess = await checkAuthorizationForUser(userId);
+    if (!canAccess) {
+      throw new Error("Access denied: You don't have permission to access this profile");
     }
     
     const docRef = doc(db, "users", userId);
     const docSnap = await getDoc(docRef);
     
     if (docSnap.exists()) {
-      return docSnap.data() as UserProfile;
+      const data = docSnap.data();
+      return {
+        ...data,
+        role: data.role || 'user' // Default to 'user' if role not set
+      } as UserProfile;
     } else {
       return null;
     }
   } catch (error) {
     handleFirebaseError(error, "getUserProfile");
-    // This line will never be reached, but satisfies TypeScript
     return null;
   }
 };
@@ -356,7 +407,21 @@ export const getUserTimelineSubmission = async (userId: string): Promise<Timelin
 
 export const updateTimelineSubmission = async (submissionId: string, submissionData: Partial<TimelineSubmission>): Promise<void> => {
   try {
+    // Get the submission to check ownership
     const docRef = doc(db, "timelineSubmissions", submissionId);
+    const docSnap = await getDoc(docRef);
+    
+    if (!docSnap.exists()) {
+      throw new Error("Submission not found");
+    }
+    
+    const existingData = docSnap.data();
+    const canAccess = await checkAuthorizationForUser(existingData.userId);
+    
+    if (!canAccess) {
+      throw new Error("Access denied: You don't have permission to update this submission");
+    }
+    
     await updateDoc(docRef, {
       ...submissionData,
       updatedAt: new Date().toISOString()
@@ -414,6 +479,134 @@ export const deleteFile = async (fileUrl: string): Promise<void> => {
     await deleteObject(storageRef);
   } catch (error) {
     console.error("Error deleting file:", error);
+    throw error;
+  }
+};
+
+// ==================== ADMIN FUNCTIONS ====================
+
+export interface UserWithSubmission extends UserProfile {
+  id: string;
+  hasSubmission: boolean;
+  submissionStatus?: 'draft' | 'submitted' | 'reviewed';
+  submissionDate?: string;
+}
+
+// Admin only: Get all users with their submission status
+export const getAllUsersWithSubmissions = async (): Promise<UserWithSubmission[]> => {
+  try {
+    const isAdmin = await isCurrentUserAdmin();
+    if (!isAdmin) {
+      throw new Error("Access denied: Admin privileges required");
+    }
+    
+    const usersSnapshot = await getDocs(collection(db, "users"));
+    const users: UserWithSubmission[] = [];
+    
+    const submissionsSnapshot = await getDocs(collection(db, "timelineSubmissions"));
+    const submissionsByUserId = new Map<string, { status: string; date: string }>();
+    
+    submissionsSnapshot.forEach((doc) => {
+      const data = doc.data();
+      submissionsByUserId.set(data.userId, {
+        status: data.status || 'draft',
+        date: data.submittedAt || data.updatedAt
+      });
+    });
+    
+    usersSnapshot.forEach((doc) => {
+      const userData = doc.data();
+      const submission = submissionsByUserId.get(doc.id);
+      
+      users.push({
+        id: doc.id,
+        email: userData.email,
+        firstName: userData.firstName || '',
+        lastName: userData.lastName || '',
+        displayName: userData.displayName || '',
+        role: userData.role || 'user',
+        createdAt: userData.createdAt,
+        updatedAt: userData.updatedAt,
+        hasSubmission: !!submission,
+        submissionStatus: submission?.status as 'draft' | 'submitted' | 'reviewed' | undefined,
+        submissionDate: submission?.date
+      });
+    });
+    
+    users.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    
+    return users;
+  } catch (error) {
+    console.error("Error getting all users:", error);
+    throw error;
+  }
+};
+
+// Admin only: Search users by name or email
+export const searchUsers = async (searchTerm: string): Promise<UserWithSubmission[]> => {
+  try {
+    const isAdmin = await isCurrentUserAdmin();
+    if (!isAdmin) {
+      throw new Error("Access denied: Admin privileges required");
+    }
+    
+    const allUsers = await getAllUsersWithSubmissions();
+    const searchLower = searchTerm.toLowerCase();
+    
+    return allUsers.filter(user => 
+      user.email.toLowerCase().includes(searchLower) ||
+      user.firstName.toLowerCase().includes(searchLower) ||
+      user.lastName.toLowerCase().includes(searchLower) ||
+      user.displayName.toLowerCase().includes(searchLower)
+    );
+  } catch (error) {
+    console.error("Error searching users:", error);
+    throw error;
+  }
+};
+
+// Admin only: Update user role
+export const updateUserRole = async (userId: string, newRole: UserRole): Promise<void> => {
+  try {
+    const isAdmin = await isCurrentUserAdmin();
+    if (!isAdmin) {
+      throw new Error("Access denied: Admin privileges required");
+    }
+    
+    const currentUserId = checkAuth();
+    if (currentUserId === userId && newRole !== 'admin') {
+      throw new Error("Cannot remove your own admin privileges");
+    }
+    
+    const docRef = doc(db, "users", userId);
+    await updateDoc(docRef, {
+      role: newRole,
+      updatedAt: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error("Error updating user role:", error);
+    throw error;
+  }
+};
+
+// Admin only: Update submission status
+export const updateSubmissionStatus = async (
+  submissionId: string, 
+  status: 'draft' | 'submitted' | 'reviewed'
+): Promise<void> => {
+  try {
+    const isAdmin = await isCurrentUserAdmin();
+    if (!isAdmin) {
+      throw new Error("Access denied: Admin privileges required");
+    }
+    
+    const docRef = doc(db, "timelineSubmissions", submissionId);
+    await updateDoc(docRef, {
+      status,
+      updatedAt: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error("Error updating submission status:", error);
     throw error;
   }
 };

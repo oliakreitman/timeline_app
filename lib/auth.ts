@@ -58,15 +58,18 @@ export const signUp = async (data: SignUpData): Promise<UserCredential> => {
       });
     }
     
-    // Create user profile in Firestore
+    // Create user profile in Firestore with default 'user' role
+    console.log("Creating Firestore user profile for:", userCredential.user.uid);
     await createUserProfile(userCredential.user.uid, {
       email: data.email,
       firstName: data.firstName || '',
       lastName: data.lastName || '',
-      displayName: userCredential.user.displayName || '',
+      displayName: userCredential.user.displayName || `${data.firstName || ''} ${data.lastName || ''}`.trim(),
+      role: 'user',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     });
+    console.log("Firestore user profile created successfully");
     
     return userCredential;
   } catch (error: any) {
@@ -83,6 +86,32 @@ export const signIn = async (data: SignInData): Promise<UserCredential> => {
       data.email,
       data.password
     );
+    
+    // Check if user profile exists in Firestore, create if missing
+    try {
+      const { doc, getDoc, setDoc } = await import('firebase/firestore');
+      const { db } = await import('./firebase');
+      
+      const userDocRef = doc(db, 'users', userCredential.user.uid);
+      const userDoc = await getDoc(userDocRef);
+      
+      if (!userDoc.exists()) {
+        console.log("User profile missing in Firestore, creating one...");
+        await setDoc(userDocRef, {
+          email: data.email,
+          firstName: '',
+          lastName: '',
+          displayName: userCredential.user.displayName || '',
+          role: 'user',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        });
+        console.log("User profile created on sign-in");
+      }
+    } catch (profileError) {
+      console.error("Error checking/creating profile on sign-in:", profileError);
+    }
+    
     return userCredential;
   } catch (error: any) {
     // Re-throw error to be handled by the UI with user-friendly messages
