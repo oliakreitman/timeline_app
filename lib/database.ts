@@ -18,11 +18,14 @@ import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage
 import { db, storage } from "./firebase";
 import { auth } from "./firebase";
 
+export type UserRole = 'user' | 'admin';
+
 export interface UserProfile {
   email: string;
   firstName: string;
   lastName: string;
   displayName: string;
+  role: UserRole;
   createdAt: string;
   updatedAt: string;
 }
